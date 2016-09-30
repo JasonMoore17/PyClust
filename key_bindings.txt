@@ -1,0 +1,19 @@
+
+esc        close PyClust
+A          Add Cluster
+Delete     Delete Cluster
+C          Copy Cluster
+X          Split Cluster
+M          Merge
+Z          Autotrim
+S          Add Limit
+D          Delete Limit
+H          Hide All
+J          Show All
+U          Toggle Unclustered
+G          Hide All/Check Unclustered/Select Junk
+O          Toggle Overview
+>          Next Cluster
+<          Previous Cluster
+1          Previous Feature
+2          Next Feature
