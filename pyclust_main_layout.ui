@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1266</width>
-    <height>860</height>
+    <width>1291</width>
+    <height>885</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -529,7 +529,7 @@
                   </font>
                  </property>
                  <property name="text">
-                  <string>dfhg</string>
+                  <string>H</string>
                  </property>
                  <property name="alignment">
                   <set>Qt::AlignCenter</set>
@@ -833,8 +833,8 @@
                  <rect>
                   <x>0</x>
                   <y>0</y>
-                  <width>168</width>
-                  <height>520</height>
+                  <width>201</width>
+                  <height>498</height>
                  </rect>
                 </property>
                </widget>
@@ -857,7 +857,7 @@
           <widget class="QWidget" name="page_3">
            <layout class="QVBoxLayout" name="verticalLayout_7">
             <item>
-             <widget class="MatplotlibWidget" name="mplwidget_wavecutter" native="true">
+             <widget class="MatplotlibWidget" name="mplwidget_wavecutter">
               <property name="autoFillBackground">
                <bool>true</bool>
               </property>
@@ -974,7 +974,7 @@
            </layout>
           </widget>
           <widget class="QWidget" name="page_4">
-           <widget class="MatplotlibWidget" name="mplwidget_outliers" native="true">
+           <widget class="MatplotlibWidget" name="mplwidget_outliers">
             <property name="geometry">
              <rect>
               <x>20</x>
@@ -1082,7 +1082,7 @@
          </layout>
         </item>
         <item>
-         <widget class="MatplotlibWidget" name="mplwidget_autotrim" native="true">
+         <widget class="MatplotlibWidget" name="mplwidget_autotrim">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
             <horstretch>0</horstretch>
@@ -1141,7 +1141,7 @@
            </layout>
           </item>
           <item>
-           <widget class="MatplotlibWidget" name="mplwidget_merge_wv" native="true">
+           <widget class="MatplotlibWidget" name="mplwidget_merge_wv">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Expanding" vsizetype="Maximum">
               <horstretch>0</horstretch>
@@ -1180,7 +1180,7 @@
          </layout>
         </item>
         <item>
-         <widget class="MatplotlibWidget" name="mplwidget_merge" native="true">
+         <widget class="MatplotlibWidget" name="mplwidget_merge">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
             <horstretch>0</horstretch>
@@ -1299,7 +1299,7 @@
            </layout>
           </item>
           <item>
-           <widget class="MatplotlibWidget" name="mplwidget_isi" native="true">
+           <widget class="MatplotlibWidget" name="mplwidget_isi">
             <property name="minimumSize">
              <size>
               <width>247</width>
@@ -1699,7 +1699,7 @@
            </layout>
           </item>
           <item>
-           <widget class="MatplotlibWidget" name="mplwidget_waveform" native="true">
+           <widget class="MatplotlibWidget" name="mplwidget_waveform">
             <property name="maximumSize">
              <size>
               <width>291</width>
@@ -1722,7 +1722,7 @@
            </spacer>
           </item>
           <item>
-           <widget class="MatplotlibWidget" name="mplwidget_drift" native="true"/>
+           <widget class="MatplotlibWidget" name="mplwidget_drift"/>
           </item>
          </layout>
         </widget>
@@ -1737,8 +1737,8 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1266</width>
-     <height>21</height>
+     <width>1291</width>
+     <height>26</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -1794,10 +1794,21 @@
      <addaction name="actionDensity"/>
      <addaction name="actionLog_Density"/>
     </widget>
+    <widget class="QMenu" name="menuAutozoom">
+     <property name="title">
+      <string>Autozoom</string>
+     </property>
+     <addaction name="actionAutozoom_None"/>
+     <addaction name="actionAutozoom_10"/>
+     <addaction name="actionAutozoom_25"/>
+     <addaction name="actionAutozoom_33"/>
+     <addaction name="actionAutozoom_50"/>
+    </widget>
     <addaction name="actionRefractory"/>
     <addaction name="actionOverview_Mode"/>
     <addaction name="menuMarker_Size"/>
     <addaction name="menuProjection_Type"/>
+    <addaction name="menuAutozoom"/>
    </widget>
    <widget class="QMenu" name="menuEdit">
     <property name="title">
@@ -1961,6 +1972,49 @@
   <action name="actionSplit_Cluster">
    <property name="text">
     <string>Split Cluster</string>
+   </property>
+  </action>
+  <action name="actionAutozoom_10">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>.10</string>
+   </property>
+  </action>
+  <action name="actionAutozoom_25">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>.25</string>
+   </property>
+  </action>
+  <action name="actionAutozoom_33">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>.33</string>
+   </property>
+  </action>
+  <action name="actionAutozoom_50">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>.50</string>
+   </property>
+  </action>
+  <action name="actionAutozoom_None">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>None</string>
    </property>
   </action>
  </widget>

@@ -19,7 +19,8 @@ import time
 
 import six
 
-from gui2 import Ui_MainWindow
+#from gui2 import Ui_MainWindow
+from mygui import Ui_MainWindow
 
 import spikeset
 import spikeset_io
@@ -480,7 +481,7 @@ class PyClustMainWindow(QtGui.QMainWindow):
         self.ui.pushButton_previous_projection.setEnabled(checked)
         self.ui.comboBox_feature_y_chan.setEnabled(checked)
         self.ui.comboBox_feature_x_chan.setEnabled(checked)
-        self.ui.comboBox_feature_y.setEnabled(checked)
+        #self.ui.comboBox_feature_y.setEnabled(checked)
 
         self.ui.pushButton_addLimit.setEnabled(checked)
         self.ui.actionAdd_Limit.setEnabled(checked)
@@ -631,6 +632,15 @@ class PyClustMainWindow(QtGui.QMainWindow):
         self.ui.agroup_scatter.addAction(self.ui.actionDensity)
         self.ui.agroup_scatter.addAction(self.ui.actionLog_Density)
 
+        # action group for autozoom
+        self.ui.agroup_autozoom = QtGui.QActionGroup(self, exclusive=True)
+        self.ui.agroup_autozoom.addAction(self.ui.actionAutozoom_None)
+        self.ui.agroup_autozoom.addAction(self.ui.actionAutozoom_10)
+        self.ui.agroup_autozoom.addAction(self.ui.actionAutozoom_25)
+        self.ui.agroup_autozoom.addAction(self.ui.actionAutozoom_33)
+        self.ui.agroup_autozoom.addAction(self.ui.actionAutozoom_50)
+        self.ui.agroup_autozoom.triggered.connect(self.actionAutozoom_triggered)
+
         # Connect the handlers
         self.ui.checkBox_merge_background.clicked.connect(
                 self.merge_redraw)
@@ -755,6 +765,7 @@ class PyClustMainWindow(QtGui.QMainWindow):
         self.mp_proj.featureRedrawRequired.connect(self.updateFeaturePlot)
         self.mp_proj_multi.featureRedrawRequired.connect(
             self.updateFeaturePlot)
+        self.mp_proj_multi.selectFromOverview_signal.connect(self.selectProjectionFromOverview)
 
         # Signals for unclustered show checkbox
         self.ui.checkBox_show_unclustered.stateChanged.connect(
@@ -1346,7 +1357,7 @@ class PyClustMainWindow(QtGui.QMainWindow):
         self.mp_proj.setChanY(int(
                 self.ui.comboBox_feature_y_chan.currentText()) - 1)
         # and the multi plot widget
-        self.mp_proj_multi.setFeature(current_x)
+        self.mp_proj_multi.setFeatureX(current_x)
 
         # Remove the blocks
         self.mp_proj.blockSignals(False)
@@ -1448,6 +1459,7 @@ class PyClustMainWindow(QtGui.QMainWindow):
                 self.ui.comboBox_feature_x_chan.currentText()) - 1)
         self.mp_proj.setChanY(int(
                 self.ui.comboBox_feature_y_chan.currentText()) - 1)
+        self.mp_proj_multi.setFeatureY(current_y)
 
         # Remove the blocks
         self.mp_proj.blockSignals(False)
@@ -2200,6 +2212,105 @@ class PyClustMainWindow(QtGui.QMainWindow):
             self.mp_outlier.axes.cla()
 
         self.mp_outlier.draw()
+
+    def selectProjectionFromOverview(self):
+        # self.mp_proj.feature_x = self.mp_proj_multi.feature
+        if self._overviewmode:
+            self.ui.checkBox_overview.setChecked(False)
+
+            feature_x = self.mp_proj.feature_x
+            feature_y = self.mp_proj.feature_y
+
+            self.ui.comboBox_feature_x_chan.setCurrentIndex(0)
+            self.ui.comboBox_feature_y_chan.setCurrentIndex(0)
+            # start at first projection so that we can get the correct number of channels
+
+            # calculate the correct projections
+            if feature_x == feature_y:  # execute code for projection against different features
+                max_chan = self.ui.comboBox_feature_x_chan.count() + 1
+                count = 0
+                breakPlease = False
+
+                x_proj = 1
+                y_proj = 2
+                while count != self.mp_proj_multi.selectedSubplot:
+                    count += 1
+                    if y_proj < max_chan:
+                        y_proj += 1
+                    else: # y_proj is max
+                        x_proj += 1
+                        y_proj = x_proj + 1
+
+                index = self.ui.comboBox_feature_x_chan.findText(str(x_proj))
+                self.ui.comboBox_feature_x_chan.setCurrentIndex(index)
+                index = self.ui.comboBox_feature_y_chan.findText(str(y_proj))
+                self.ui.comboBox_feature_y_chan.setCurrentIndex(index)
+
+            else:   # execute code for projection against same feature
+                    # if self.mp_proj.feature_y in self.spikeset.featureByName(feature_x).valid_y_same_chan:
+                index = self.mp_proj_multi.selectedSubplot
+                self.ui.comboBox_feature_x_chan.setCurrentIndex(index)
+                self.ui.comboBox_feature_y_chan.setCurrentIndex(0)
+
+
+
+            """
+            #self.mp_proj.feature_x = self.mp_proj_multi.feature
+            #self.mp_proj.feature_y = self.mp_proj_multi.feature
+            self.ui.checkBox_overview.setChecked(False)
+
+            self.ui.comboBox_feature_x_chan.blockSignals(True)
+            self.ui.comboBox_feature_y_chan.blockSignals(True)
+
+            self.ui.comboBox_feature_x_chan.setCurrentIndex(0)
+            self.ui.comboBox_feature_y_chan.setCurrentIndex(0)
+
+            # iterate projections until we hit the correct one
+            count = 0
+            while count != self.mp_proj_multi.selectedSubplot:
+                count += 1
+
+                # if we're at the end of the current y channel range
+                if (self.ui.comboBox_feature_y_chan.currentIndex()
+                        == self.ui.comboBox_feature_y_chan.count() - 1):
+                    # but not at the end of the current x channel range
+                    if not (self.ui.comboBox_feature_x_chan.currentIndex()
+                                == self.ui.comboBox_feature_x_chan.count() - 1):
+                        # step x to the next projection
+                        self.ui.comboBox_feature_x_chan.setCurrentIndex(
+                            self.ui.comboBox_feature_x_chan.currentIndex() + 1)
+                else:
+                    self.ui.comboBox_feature_y_chan.setCurrentIndex(
+                        self.ui.comboBox_feature_y_chan.currentIndex() + 1)
+
+                print("current x, y:")
+                print(self.ui.comboBox_feature_x_chan.currentIndex())
+                print(self.ui.comboBox_feature_y_chan.currentIndex())
+
+            self.mp_proj.chan_x = self.ui.comboBox_feature_x_chan.currentIndex()
+            self.mp_proj.chan_y = self.ui.comboBox_feature_y_chan.currentIndex()
+
+            self.ui.comboBox_feature_x_chan.blockSignals(False)
+            self.ui.comboBox_feature_y_chan.blockSignals(False)
+
+            #self.feature_channel_x_changed(self.ui.comboBox_feature_x_chan.currentIndex())
+            #self.feature_channel_y_changed(self.ui.comboBox_feature_y_chan.currentIndex())
+            """
+
+    def actionAutozoom_triggered(self):
+        if self.ui.agroup_autozoom.checkedAction() == self.ui.actionAutozoom_None:
+            self.mp_proj.autozoom_mode = False
+        else:
+            self.mp_proj.autozoom_mode = True
+            if self.ui.agroup_autozoom.checkedAction() == self.ui.actionAutozoom_10:
+                self.mp_proj.autozoom_factor = 0.10
+            elif self.ui.agroup_autozoom.checkedAction() == self.ui.actionAutozoom_25:
+                self.mp_proj.autozoom_factor = 0.25
+            elif self.ui.agroup_autozoom.checkedAction() == self.ui.actionAutozoom_33:
+                self.mp_proj.autozoom_factor = 0.33
+            elif self.ui.agroup_autozoom.checkedAction() == self.ui.actionAutozoom_50:
+                self.mp_proj.autozoom_factor = 0.50
+        self.mp_proj.featureRedrawRequired.emit()
 
     def keyPressEvent(self, e): 
         ''' Ugly keybindings...but it works. '''

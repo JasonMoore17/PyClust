@@ -16,6 +16,7 @@ rcParams['font.size'] = 9
 
 import boundaries  # Need to know how to create boundaries
 
+#AUTOZOOM_FACTOR = 0.25
 
 class ProjectionWidget(Canvas):
 
@@ -67,6 +68,10 @@ class ProjectionWidget(Canvas):
         self.mpl_connect('button_press_event', self.onMousePress)
         self.mpl_connect('button_release_event', self.onMouseRelease)
         self.mpl_connect('motion_notify_event', self.onMouseMove)
+
+        self.autozoom_mode = False
+        self.autozoom_factor = None
+        self.autozoom_limits = np.array([None for i in range(2)], dtype=object)
 
     @Slot(bool)
     def setShowUnclustered(self, show):
@@ -205,7 +210,7 @@ class ProjectionWidget(Canvas):
             w = np.array([False] * spikeset.N)
             if self.unclustered:
                 w = np.array([True] * spikeset.N)
-                if self.exclusive:
+                if self.exclusive:  # unclustered only
                         for cluster in clusters + [junk]:
                                 w[cluster.member] = False
             for cluster in [cluster for cluster in cl_list if cluster._visible]:
@@ -251,8 +256,73 @@ class ProjectionWidget(Canvas):
                         markerfacecolor='k', markeredgecolor='k',
                         linestyle='None')
 
-        self.axes.set_xlim(self.prof_limits[0])
-        self.axes.set_ylim(self.prof_limits[1])
+        ######################################################
+        # autozoom code
+
+        if self.autozoom_mode:
+            N = spikeset.N
+            superclust = np.array([False] * N)
+            # members of all clusters, including "unclustered" cluster
+
+            superclust_isEmpty = True
+
+            # add unclustered data to superclust
+            if self.unclustered:
+                superclust = np.array([True] * N)
+                for c in clusters:
+                    for i in range(N):
+                        if c.member[i]:
+                            superclust[i] = False
+
+            for c in clusters:
+                if c._visible:
+                    for i in range(N):
+                        if c.member[i]:
+                            superclust[i] = True
+
+            for i in range(N):
+                if superclust[i]:
+                    superclust_isEmpty = False
+                    break
+
+            if not superclust_isEmpty:
+                # compute the x and y limits for autozoom
+                min_x = min(xdata[superclust])
+                max_x = max(xdata[superclust])
+                min_y = min(ydata[superclust])
+                max_y = max(ydata[superclust])
+
+                xdist = max_x - min_x
+                ydist = max_y - min_y
+
+                xlims = (min_x - xdist * self.autozoom_factor, max_x + xdist * self.autozoom_factor)
+                ylims = (min_y - ydist * self.autozoom_factor, max_y + ydist * self.autozoom_factor)
+
+                self.autozoom_limits[0] = xlims
+                self.autozoom_limits[1] = ylims
+
+        if self.autozoom_mode and self.autozoom_limits[0] and self.autozoom_limits[0]:
+            # first check that autozoom indeed has more zoom
+            if (self.autozoom_limits[0][1] - self.autozoom_limits[0][0]
+                    < self.prof_limits[0][1] - self.prof_limits[0][0]):
+                self.axes.set_xlim(self.autozoom_limits[0])
+            else:
+                self.axes.set_xlim(self.prof_limits[0])
+
+            if (self.autozoom_limits[1][1] - self.autozoom_limits[1][0]
+                    < self.prof_limits[1][1] - self.prof_limits[1][0]):
+                self.axes.set_ylim(self.autozoom_limits[1])
+            else:
+                self.axes.set_ylim(self.prof_limits[1])
+
+        # end of autozoom code
+        ######################################################
+
+        else:
+            self.axes.set_xlim(self.prof_limits[0])
+            self.axes.set_ylim(self.prof_limits[1])
+
+
         for tick in self.axes.xaxis.get_major_ticks():
             tick.set_pad(-15)
         for tick in self.axes.yaxis.get_major_ticks():
@@ -295,14 +365,17 @@ class ProjectionWidget(Canvas):
             return
 
         self.prof_limits = temp
+        # prof_limits[0] is the 2-tuple boundary along the x-axis
+        # prof_limits[1] is the 2-tuple boundary along the y-axis
 
-        if self.ptype == -2:
+        if self.ptype == -2: # if scatter plot
             self.axes.set_xlim(self.prof_limits[0])
             self.axes.set_ylim(self.prof_limits[1])
             self.draw()
         else:  # if its a density plot we should rebin for now
             #self.emit(SIGNAL("featureRedrawRequired()"))
             self.featureRedrawRequired.emit()
+
         self.repaint()
 
     def onMousePress(self, event):
@@ -417,11 +490,26 @@ class ProjectionWidget(Canvas):
         # Right click resets to original bounds
         elif event.button == 3 and (not self.limit_mode):
             self.prof_limits = self.prof_limits_reference
-            if self.ptype == -2:
-                self.axes.set_xlim(self.prof_limits[0])
-                self.axes.set_ylim(self.prof_limits[1])
+            if self.ptype == -2:  # scatter plot
+                # decide whether to return to default bounds or autozoom bounds
+                if self.autozoom_mode and self.autozoom_limits[0] and self.autozoom_limits[1]:
+                    if (self.autozoom_limits[0][1] - self.autozoom_limits[0][0]
+                            < self.prof_limits[0][1] - self.prof_limits[0][0]):
+                        self.axes.set_xlim(self.autozoom_limits[0])
+                    else:
+                        self.axes.set_xlim(self.prof_limits[0])
+
+                    if (self.autozoom_limits[1][1] - self.autozoom_limits[1][0]
+                            < self.prof_limits[1][1] - self.prof_limits[1][0]):
+                        self.axes.set_ylim(self.autozoom_limits[1])
+                    else:
+                        self.axes.set_ylim(self.prof_limits[1])
+
+                else:
+                    self.axes.set_xlim(self.prof_limits[0])
+                    self.axes.set_ylim(self.prof_limits[1])
                 self.draw()
-            else:
+            else:  # density plot
                 #self.emit(SIGNAL("featureRedrawRequired()"))
                 self.featureRedrawRequired.emit()
 
