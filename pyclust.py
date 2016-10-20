@@ -29,6 +29,11 @@ import multiplotwidget
 import boundaries
 #import features
 
+# used for paint bucket
+from collections import deque
+from scipy.spatial import distance
+import math
+import time
 
 def xcorr_ts(t1, t2, demean=True, normed=True, binsize=2, maxlag=None):
     """Computes the xcorr of spiketrains times t1 and t2. Units assumed ms."""
@@ -935,6 +940,9 @@ class PyClustMainWindow(QtGui.QMainWindow):
 
         # list containing the cluster check/radio/color buttons
         self.cluster_ui_buttons = []
+
+        # paint bucket code
+        self.mp_proj.mpl_connect('button_press_event', self.paintBucketFill)
 
     def hide_show_all_clusters(self, hidden):
         radio = self.activeClusterRadioButton()
@@ -2226,7 +2234,7 @@ class PyClustMainWindow(QtGui.QMainWindow):
             # start at first projection so that we can get the correct number of channels
 
             # calculate the correct projections
-            if feature_x == feature_y:  # execute code for projection against different features
+            if feature_x == feature_y:  # execute code for projection against same feature
                 max_chan = self.ui.comboBox_feature_x_chan.count() + 1
                 count = 0
                 breakPlease = False
@@ -2246,7 +2254,7 @@ class PyClustMainWindow(QtGui.QMainWindow):
                 index = self.ui.comboBox_feature_y_chan.findText(str(y_proj))
                 self.ui.comboBox_feature_y_chan.setCurrentIndex(index)
 
-            else:   # execute code for projection against same feature
+            else:   # execute code for projection against different features
                     # if self.mp_proj.feature_y in self.spikeset.featureByName(feature_x).valid_y_same_chan:
                 index = self.mp_proj_multi.selectedSubplot
                 self.ui.comboBox_feature_x_chan.setCurrentIndex(index)
@@ -2383,11 +2391,326 @@ class PyClustMainWindow(QtGui.QMainWindow):
                         self.buttonGroup_cluster.buttons()[length-1].blockSignals(False)
                         self.update_active_cluster()
                     break
-        
+
         elif key == QtCore.Qt.Key_Delete:
             self.on_actionDelete_Cluster_triggered()
         elif key == QtCore.Qt.Key_D:
-            self.on_actionDelete_Limit_triggered()     
+            self.on_actionDelete_Limit_triggered()
+        elif key == QtCore.Qt.Key_P:
+            self.paintBucketActivate()
+
+    def paintBucketActivate(self):
+        self.mp_proj.paintBucket_mode = True
+
+    def paintBucketFill(self, event):
+        if not self.mp_proj.paintBucket_mode:
+            return
+
+        startTime = time.time()
+
+        #n_xbins = 50  # , say
+        #n_ybins = 50  # , say
+        # number of partitions along each axis
+
+        N = self.spikeset.N
+
+        #####################################################################
+        # Nested functions
+
+        def getBinCount(xdata, ydata, size):
+            min_x = min(xdata)
+            min_y = min(ydata)
+            n_xbins = int(math.ceil((max(xdata) - min_x + 1) / size))
+            n_ybins = int(math.ceil((max(ydata) - min_y + 1) / size))
+            # add 1 extra bin in calculation to prevent segmentation fault
+
+            t = (n_xbins, n_ybins)  # number of x- and y- indices for bins
+            return t
+
+        def createBins(xdata, ydata, size):
+            binCount = getBinCount(xdata, ydata, size)
+            n_xbins = binCount[0]
+            n_ybins = binCount[1]
+
+            # 2 types of bins: 1 for spike count, 1 for spike membership
+            #bins_count = np.array([[0] * n_ybins] * n_xbins)
+            bins_members = np.array([[None] * n_ybins] * n_xbins)
+            for i in range(n_xbins):
+                for j in range(n_ybins):
+                    bins_members[i][j] = []
+
+            min_x = min(xdata)
+            min_y = min(ydata)
+            for p in range(N):
+                #bin_x = math.floor(xdata[p]/dx)
+                #bin_y = math.floor(ydata[p]/dy)
+                bin_x = int((xdata[p] - min_x)/size)
+                bin_y = int((ydata[p] - min_y)/size)
+                #bins_count[bin_x][bin_y] += 1
+                bins_members[bin_x][bin_y].append(p)
+
+            return bins_members
+
+        def createCountBins(xdata, ydata, size):
+            binCount = getBinCount(xdata, ydata, size)
+            n_xbins = binCount[0]
+            n_ybins = binCount[1]
+
+            countBins = np.array([[0] * n_ybins] * n_xbins)
+
+            min_x = min(xdata)
+            min_y = min(ydata)
+            for p in range(N):
+                bin_x = int((xdata[p] - min_x)/size)
+                bin_y = int((ydata[p] - min_y)/size)
+                countBins[bin_x][bin_y] += 1
+
+            return countBins
+
+        def getBin(coord, xdata, ydata, size):
+            min_x = min(xdata)
+            min_y = min(ydata)
+            return ((int((coord[0] - min_x) / size)), int((coord[1] - min_y) / size))
+
+        def getBinNeighborhood(bin, n_xbins, n_ybins):
+            bin_neighborhood = []
+            bin_neighborhood.append((bin[0], bin[1]))  # center
+            if bin[0] - 1 >= 0 and bin[1] + 1 < n_ybins:
+                bin_neighborhood.append((bin[0] - 1, bin[1] + 1))  # top left
+            if bin[1] + 1 < n_ybins:
+                bin_neighborhood.append((bin[0], bin[1] + 1))  # top
+            if bin[0] + 1 < n_xbins and bin[1] + 1 < n_ybins:
+                bin_neighborhood.append((bin[0] + 1, bin[1] + 1))  # top right
+            if bin[0] + 1 < n_xbins:
+                bin_neighborhood.append((bin[0] + 1, bin[1]))  # right
+            if bin[0] + 1 < n_xbins and bin[1] - 1 >= 0:
+                bin_neighborhood.append((bin[0] + 1, bin[1] - 1))  # bot right
+            if bin[1] - 1 >= 0:
+                bin_neighborhood.append((bin[0], bin[1] - 1))  # bot
+            if bin[0] - 1 >= 0 and bin[1] - 1 >= 0:
+                bin_neighborhood.append((bin[0] - 1, bin[1] - 1))  # bot left
+            if bin[0] - 1 >= 0:
+                bin_neighborhood.append((bin[0] - 1, bin[1]))  # left
+            return bin_neighborhood
+
+        def DBSCAN(s, eps, minPts, spikes, xdata, ydata):
+            # Density-Based Spatial Clustering for Applications with Noise
+            # params:
+            # s - the source point; a point q is density-reachable from point p if p has at least minPts points
+            # within radius eps. A core point is a point that has minPts points eps distance away. A border point
+            # is a density-reachable point from a core point, but not itself a core point. Otherwise, it is noise.
+            # Cluster all non-noise points.
+            N = xdata.size
+
+            binMembers = createBins(xdata, ydata, eps)
+            binCount = getBinCount(xdata, ydata, eps)
+            n_xbins = binCount[0]
+            n_ybins = binCount[1]
+
+            ##############################################################################
+            # construct another, smaller set of bins containing spike counts;
+            # no 2 spikes in its bin neighborhood are farther than eps
+            # call this bin2, for "bin type-2"
+            eps2 = eps / math.sqrt(2) / 3
+            binMembers2 = createBins(xdata, ydata, eps2)
+            binCount2 = getBinCount(xdata, ydata, eps2)
+            n_xbins2 = binCount2[0]
+            n_ybins2 = binCount2[1]
+            bin2_spikeCount = np.array([[0] * n_ybins2] * n_xbins2)
+            for i in range(n_xbins2):
+                for j in range(n_ybins2):
+                    for p in binMembers2[i][j]:
+                        bin2_spikeCount[i][j] += 1
+
+            # remember stuff to prevent repeated computations for the same check
+            computed2 = np.array([[False] * n_ybins2] * n_xbins2)
+            # remembers which bins
+
+            denseEnough2 = np.array([[False] * n_ybins2] * n_xbins2)
+            # remembers which bins' neighborhood are dense enough
+
+            ##############################################################################
+
+            visited = np.array([False] * N)
+            queue = deque([s])
+            visited[s] = True
+            cluster_members = np.array([False] * N)
+            while len(queue) != 0:
+                p = queue.popleft()
+                u = (xdata[p], ydata[p])
+                cluster_members[p] = True
+
+                #######################################################
+                # check if type-2 bin neighborhood contains >= minPts points
+                bin2 = getBin(u, xdata, ydata, eps2)
+                if not computed2[bin2[0]][bin2[1]]:
+                    bin2_neighborhood = getBinNeighborhood(bin2, n_xbins2, n_xbins2)
+                    count2 = 0
+                    for bin2 in bin2_neighborhood:
+                        count2 += bin2_spikeCount[bin2[0]][bin2[1]]
+                    computed2[bin2[0]][bin2[1]] = True
+                    if count2 >= minPts:
+                        denseEnough2[bin2[0]][bin2[1]] = True
+
+                #######################################################
+
+                if denseEnough2[bin2[0]][bin2[1]]:
+                    # skip the regular counting step, all bins in bin2_neighborhood are cluster members
+                    for bin2 in bin2_neighborhood:
+                        for p in binMembers2[bin2[0]][bin2[1]]:
+                            queue.append(p)
+                            visited[p] = True
+                else:  # regular DBSCAN
+                    bin = getBin(u, xdata, ydata, eps)
+                    binNeighborhood = getBinNeighborhood(bin, n_xbins, n_ybins)
+                    candidates = []
+                    count = 0
+                    # check if p is core point
+                    for bin in binNeighborhood:
+                        for q in binMembers[bin[0]][bin[1]]:
+                            if spikes[q]:
+                                v = (xdata[q], ydata[q])
+                                if distance.euclidean(u, v) <= eps:
+                                    count += 1
+                                    if visited[q] or not spikes[q]:
+                                        continue
+                                    else:
+                                        candidates.append(q)
+
+                    if count >= minPts:  # p is core point
+                        for q in candidates:
+                            queue.append(q)
+                            visited[q] = True
+
+            return cluster_members
+
+        def DBSCAN_bins(s, eps, minPts, spikes, xdata, ydata):
+            eps2 = int(math.ceil(eps/2))  # smaller version of eps for bin usage
+            memberBins = createBins(xdata, ydata, eps2)
+            countBins = createCountBins(xdata, ydata, eps2)
+            binCount = getBinCount(xdata, ydata, eps2)
+            n_xbins = binCount[0]
+            n_ybins = binCount[1]
+
+            visited = np.array([[False] * n_ybins] * n_xbins)
+
+            s_coord = (xdata[s], ydata[s])
+            sbin = getBin(s_coord, xdata, ydata, eps2)
+
+            queue = deque([sbin])
+            visited[sbin[0]][sbin[1]] = True
+            bins_clustered = []  # bins that are added to the cluster
+            bins_clustered.append(sbin)
+            while len(queue) != 0:
+                bin = queue.popleft()
+                binNeighborhood = getBinNeighborhood(bin, n_xbins, n_ybins)
+                count = 0
+                for b in binNeighborhood:
+                    count += countBins[b[0]][b[1]]
+                if count >= minPts:  # bin is a core bin
+                    for b in binNeighborhood:
+                        if visited[b[0]][b[1]]:
+                            continue
+                        visited[b[0]][b[1]] = True
+                        bins_clustered.append(b)
+                        queue.append(b)
+
+            members_clustered = np.array([False] * N)  # spikes that are added to the cluster
+            for b in bins_clustered:
+                for p in memberBins[b[0]][b[1]]:
+                    if spikes[p]:
+                        members_clustered[p] = True
+
+            return members_clustered
+
+        # end of nested functions
+        #####################################################################
+
+        cursorpos = (event.xdata, event.ydata)
+        print(cursorpos)
+
+        xdata = self.spikeset.featureByName(self.mp_proj.feature_x).data[:, self.mp_proj.chan_x]
+        ydata = self.spikeset.featureByName(self.mp_proj.feature_y).data[:, self.mp_proj.chan_y]
+
+        # compute start point as the point closest to cursor
+        # compute minPts
+        eps = 7  # , say
+        eps2 = int(math.ceil(eps/2))
+
+        binCount = getBinCount(xdata, ydata, eps2)
+        n_xbins = binCount[0]
+        n_ybins = binCount[1]
+
+        countBins = createCountBins(xdata, ydata, eps2)
+        sbin = getBin(cursorpos, xdata, ydata, eps2)
+        sbinNeighborhood = getBinNeighborhood(sbin, n_xbins, n_ybins)
+
+        # determine minPts
+        minPtsFactor = 0.08
+        minPts = 0
+        for b in sbinNeighborhood:
+            minPts += countBins[b[0]][b[1]]
+        minPts = int(minPts * minPtsFactor)  # , say
+
+        # determine start point
+        candidates = []
+        memberBins = createBins(xdata, ydata, eps2)
+        for b in sbinNeighborhood:
+            for p in memberBins[b[0]][b[1]]:
+                v = (xdata[p], ydata[p])
+                dist = distance.euclidean(cursorpos, v)
+                candidates.append((p, dist))
+        s = min(candidates, key=lambda x : x[1])[0]
+
+        spikes = np.array([True] * N)  # spikes to be considered in DBSCAN
+
+        spikes = DBSCAN_bins(s, eps, minPts, spikes, xdata, ydata)
+        # members added by DBSCAN
+
+        cluster = self.activeClusterRadioButton().cluster_reference
+
+        # repeat for all projections of relevant features
+        currentFeature = self.mp_proj.feature_x
+        features = ['Peak', 'Valley', 'Trough', 'fPCA']
+        minPtsFactors = {'Peak': 0.08, 'Valley': 0.05, 'Trough': 0.05, 'fPCA': 0.04}
+
+        for feature in features:
+            chans = self.spikeset.featureByName(feature).data.shape[1]
+            for xchan in range(chans - 1):
+                for ychan in range(xchan + 1, chans):
+                    if (feature == currentFeature
+                        and xchan == self.mp_proj.chan_x and ychan == self.mp_proj.chan_y):
+                        continue
+                    xdata = self.spikeset.featureByName(feature).data[:, xchan]
+                    ydata = self.spikeset.featureByName(feature).data[:, ychan]
+
+                    # re-calculate minPts
+                    minPts = 0
+                    s_coord = (xdata[s], ydata[s])
+                    sbin = getBin(s_coord, xdata, ydata, eps2)
+                    binCount = getBinCount(xdata, ydata, eps2)
+                    n_xbins = binCount[0]
+                    n_ybins = binCount[1]
+                    sbinNeighborhood = getBinNeighborhood(sbin, n_xbins, n_ybins)
+                    countBins = createCountBins(xdata, ydata, eps2)
+
+                    for b in sbinNeighborhood:
+                        minPts += countBins[b[0]][b[1]]
+                    minPts = minPts * minPtsFactors[feature]
+
+                    spikes = DBSCAN_bins(s, eps, minPts, spikes, xdata, ydata)
+
+        cluster.paintBucket_members = spikes
+        cluster.calculateMembership(self.spikeset)
+        self.mp_proj.featureRedrawRequired.emit()
+
+        self.updateClusterDetailPlots()  # ISI and mean-waveform
+
+        self.mp_proj.paintBucket_mode = False
+
+        endTime = time.time()
+        duration = endTime - startTime
+        print("paintBucketFill duration: %s seconds" % duration)
 
 if __name__ == "__main__":
     #app = QtGui.QApplication.instance()

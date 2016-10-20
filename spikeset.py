@@ -266,15 +266,16 @@ class Cluster:
         self.isi = []
         self.refractory = np.array([False] * spikeset.N)
         self.stats = {}
-       # self.stats['burst'] = np.NAN
-       # self.stats['csi'] = np.NAN
-       # self.stats['isolation'] = np.NAN
-       # self.stats['mean_rate'] = 0
-       # self.stats['num_spikes'] = 0
-       # self.stats['refr_count'] = np.NAN
-       # self.stats['refr_fp'] = np.NAN
-       # self.stats['refr_frac'] = np.NAN
-       # self.stats['wv_com'] = np.NAN
+        self.paintBucket_members = []
+        # self.stats['burst'] = np.NAN
+		# self.stats['csi'] = np.NAN
+		# self.stats['isolation'] = np.NAN
+		# self.stats['mean_rate'] = 0
+		# self.stats['num_spikes'] = 0
+		# self.stats['refr_count'] = np.NAN
+		# self.stats['refr_fp'] = np.NAN
+		# self.stats['refr_frac'] = np.NAN
+		# self.stats['wv_com'] = np.NAN
 
         self.isi_bins = np.logspace(np.log10(0.1), np.log10(1e5), 100)
         self.isi_bin_centers = (self.isi_bins[0:-1] + self.isi_bins[1:]) / 2
@@ -315,40 +316,53 @@ class Cluster:
     def calculateMembership(self, spikeset):
         self.mahal_valid = False
         if (self.bounds == []) and (self.add_bounds == []) and \
-                (self.member_base == []):
+                (self.member_base == []) and (self.paintBucket_members == []):
             self.member = np.array([False] * spikeset.N)
             self.isi = []
             self.refractory = np.array([False] * spikeset.N)
             self.stats = {}
             return
 
-        # If we have no member base, its all or add bounds
-        if self.member_base == []:
-            if self.add_bounds != []:
-                self.member = np.zeros((spikeset.N), dtype=np.bool)
+        if self.paintBucket_members == []:
+
+            # If we have no member base, its all or add bounds
+            if self.member_base == []:
+                if self.add_bounds != []:
+                    self.member = np.zeros((spikeset.N), dtype=np.bool)
+                    for bound in self.add_bounds:
+                        self.member = np.logical_or(self.member,
+                            bound.withinBoundary(spikeset))
+                else:
+                    self.member = np.ones((spikeset.N), dtype=np.bool)
+            # If we have a member base, start there then add add bounds
+            else:
+                self.member = np.copy(self.member_base)
                 for bound in self.add_bounds:
                     self.member = np.logical_or(self.member,
                         bound.withinBoundary(spikeset))
-            else:
-                self.member = np.ones((spikeset.N), dtype=np.bool)
-        # If we have a member base, start there then add add bounds
-        else:
-            self.member = np.copy(self.member_base)
-            for bound in self.add_bounds:
-                self.member = np.logical_or(self.member,
-                    bound.withinBoundary(spikeset))
 
-        # now cut down the start
-        for bound in self.bounds:
-            w = self.member
-            self.member[w] = np.logical_and(self.member[w],
-                bound.withinBoundary(spikeset, subset=w))
+            # now cut down the start
+            for bound in self.bounds:
+                w = self.member
+                self.member[w] = np.logical_and(self.member[w],
+                    bound.withinBoundary(spikeset, subset=w))
 
-        for (chan, sample, lower_bound, upper_bound) in self.wave_bounds:
-            w = np.logical_and(
-                spikeset.spikes[:, sample, chan] >= lower_bound,
-                spikeset.spikes[:, sample, chan] <= upper_bound)
-            self.member = np.logical_and(self.member, w)
+            for (chan, sample, lower_bound, upper_bound) in self.wave_bounds:
+                w = np.logical_and(
+                    spikeset.spikes[:, sample, chan] >= lower_bound,
+                    spikeset.spikes[:, sample, chan] <= upper_bound)
+                self.member = np.logical_and(self.member, w)
+
+        else:  # paint bucket was used
+            self.member = self.paintBucket_members
+            #self.paintBucket_members = []
+
+            if self.bounds:
+                # cut original membership with ellipse
+                for bound in self.bounds:
+                    w = self.member
+                    self.member[w] = np.logical_and(self.member[w],
+                        bound.withinBoundary(spikeset, subset=w))
 
         t = spikeset.time[self.member]
         self.refr_period = 1.7

@@ -73,6 +73,9 @@ class ProjectionWidget(Canvas):
         self.autozoom_factor = None
         self.autozoom_limits = np.array([None for i in range(2)], dtype=object)
 
+        # used for paint bucket
+        self.paintBucket_mode = False
+
     @Slot(bool)
     def setShowUnclustered(self, show):
         self.unclustered = show
