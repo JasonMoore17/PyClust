@@ -164,6 +164,51 @@ class MultiplotWidget(Canvas):
             xdata = data_x[:, proj_x]
             ydata = data_y[:, proj_y]
 
+            #############################################################################
+            # automatically zoom each subplot to visible spikes
+            
+            N = spikeset.N
+            superclust = np.array([False] * N)
+
+            superclust_isEmpty = True
+
+            # add unclustered data to superclust
+            if self.unclustered:
+                superclust = np.array([True] * N)
+                for c in clusters:
+                    for i in range(N):
+                        if c.member[i]:
+                            superclust[i] = False
+
+            for c in clusters:
+                if c._visible:
+                    for i in range(N):
+                        if c.member[i]:
+                            superclust[i] = True
+
+            for i in range(N):
+                if superclust[i]:
+                    superclust_isEmpty = False
+                    break
+
+            if not superclust_isEmpty:
+                # compute the x and y limits for autozoom
+                xmin = min(xdata[superclust])
+                xmax = max(xdata[superclust])
+                ymin = min(ydata[superclust])
+                ymax = max(ydata[superclust])
+                xdist = xmax - xmin
+                ydist = ymax - ymin
+                zoomFactor = 0.25  # , say
+                xlims = (xmin - xdist * zoomFactor, xmax + xdist * zoomFactor)
+                ylims = (ymin - ydist * zoomFactor, ymax + ydist * zoomFactor)
+                
+            self.axes[(proj_x, proj_y)].set_xlim(xlims)
+            self.axes[(proj_x, proj_y)].set_ylim(ylims)
+            
+            # end of zoom code
+            #############################################################################
+            
             self.axes[tw].hold(False)
 
             if not tw in self.prof_limits_reference.keys():
@@ -276,8 +321,15 @@ class MultiplotWidget(Canvas):
                                            markerfacecolor='k', markeredgecolor='k',
                                            linestyle='None')
 
-            self.axes[tw].set_xlim(self.prof_limits[tw][0])
-            self.axes[tw].set_ylim(self.prof_limits[tw][1])
+            # determine whether original or zoomed limits work better and stick with the better one
+            if (xlims[1] - xlims[0] < self.prof_limits[tw][0][1] - self.prof_limits[tw][0][0]
+                    and ylims[1] - ylims[0] < self.prof_limits[tw][1][1] - self.prof_limits[tw][1][0]):
+                self.axes[tw].set_xlim(xlims)
+                self.axes[tw].set_ylim(ylims)
+            else:
+                self.axes[tw].set_xlim(self.prof_limits[tw][0])
+                self.axes[tw].set_ylim(self.prof_limits[tw][1])
+
             for tick in self.axes[tw].xaxis.get_major_ticks():
                 tick.set_pad(-15)
             for tick in self.axes[tw].yaxis.get_major_ticks():
