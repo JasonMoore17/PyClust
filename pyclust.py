@@ -2623,6 +2623,26 @@ class PyClustMainWindow(QtGui.QMainWindow):
 
             return members_clustered
 
+        def limit_spikes_to_window(spikes):
+            """ Cut down spikes to those within current plot limits.
+                This is used to cut down running time in the case
+                that paint bucket "leaks" out. """
+
+            if self.mp_proj.autozoom_mode:
+                limits = self.mp_proj.autozoom_limits
+            else:
+                limits = self.mp_proj.prof_limits
+
+            xdata = self.spikeset.featureByName(self.mp_proj.feature_x).data[:, self.mp_proj.chan_x]
+            ydata = self.spikeset.featureByName(self.mp_proj.feature_y).data[:, self.mp_proj.chan_y]
+
+            for i in range(N):
+                if spikes[i]:
+                    spikes[i] = (limits[0][0] <= xdata[i] <= limits[0][1]
+                                 and limits[1][0] <= ydata[i] <= limits[1][1])
+
+            return spikes
+
         # end of nested functions
         #####################################################################
 
@@ -2670,6 +2690,8 @@ class PyClustMainWindow(QtGui.QMainWindow):
         # Start with set of spikes previously clustered by paint bucket
         if cluster.paintBucket_members != []:
             spikes = cluster.paintBucket_members
+
+        spikes = limit_spikes_to_window(spikes)
 
         spikes = DBSCAN_bins(s, eps, minPts, spikes, xdata, ydata)
         # members added by DBSCAN
