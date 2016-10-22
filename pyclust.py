@@ -2645,12 +2645,14 @@ class PyClustMainWindow(QtGui.QMainWindow):
         sbin = getBin(cursorpos, xdata, ydata, eps2)
         sbinNeighborhood = getBinNeighborhood(sbin, n_xbins, n_ybins)
 
+        minPtsFactors = {'Peak': 0.08, 'Valley': 0.05, 'Trough': 0.05, 'fPCA': 0.04}  # arbitrary
+        feature = self.mp_proj.feature_x
+
         # determine minPts
-        minPtsFactor = 0.08
         minPts = 0
         for b in sbinNeighborhood:
             minPts += countBins[b[0]][b[1]]
-        minPts = int(minPts * minPtsFactor)  # , say
+        minPts = int(minPts * minPtsFactors[feature])  # , say
 
         # determine start point
         candidates = []
@@ -2662,43 +2664,48 @@ class PyClustMainWindow(QtGui.QMainWindow):
                 candidates.append((p, dist))
         s = min(candidates, key=lambda x : x[1])[0]
 
+        cluster = self.activeClusterRadioButton().cluster_reference
         spikes = np.array([True] * N)  # spikes to be considered in DBSCAN
+
+        # Start with set of spikes previously clustered by paint bucket
+        if cluster.paintBucket_members != []:
+            spikes = cluster.paintBucket_members
 
         spikes = DBSCAN_bins(s, eps, minPts, spikes, xdata, ydata)
         # members added by DBSCAN
 
-        cluster = self.activeClusterRadioButton().cluster_reference
+        spikes = DBSCAN_bins(s, eps, minPts, spikes, xdata, ydata)
 
-        # repeat for all projections of relevant features
-        currentFeature = self.mp_proj.feature_x
-        features = ['Peak', 'Valley', 'Trough', 'fPCA']
-        minPtsFactors = {'Peak': 0.08, 'Valley': 0.05, 'Trough': 0.05, 'fPCA': 0.04}
+        # repeat DBSCAN for all channels of current feature
+        chans = self.spikeset.featureByName(feature).data.shape[1]
+        cur_xchan = self.mp_proj.chan_x
+        cur_ychan = self.mp_proj.chan_y
+        
+        for xchan in range(chans - 1):
+            for ychan in range (xchan + 1, chans):
+                # skip the projection we started with
+                if xchan == cur_xchan and ychan == cur_ychan:
+                    continue
+                
+                xdata = self.spikeset.featureByName(feature).data[:, xchan]
+        
+                ydata = self.spikeset.featureByName(feature).data[:, ychan]
+                # re-calculate minPts
+                minPts = 0
+                s_coord = (xdata[s], ydata[s])
+                sbin = getBin(s_coord, xdata, ydata, eps2)
+                binCount = getBinCount(xdata, ydata, eps2)
+                n_xbins = binCount[0]
+                n_ybins = binCount[1]
+                sbinNeighborhood = getBinNeighborhood(sbin, n_xbins, n_ybins)
+                countBins = createCountBins(xdata, ydata, eps2)
 
-        for feature in features:
-            chans = self.spikeset.featureByName(feature).data.shape[1]
-            for xchan in range(chans - 1):
-                for ychan in range(xchan + 1, chans):
-                    if (feature == currentFeature
-                        and xchan == self.mp_proj.chan_x and ychan == self.mp_proj.chan_y):
-                        continue
-                    xdata = self.spikeset.featureByName(feature).data[:, xchan]
-                    ydata = self.spikeset.featureByName(feature).data[:, ychan]
+                for b in sbinNeighborhood:
+                    minPts += countBins[b[0]][b[1]]
 
-                    # re-calculate minPts
-                    minPts = 0
-                    s_coord = (xdata[s], ydata[s])
-                    sbin = getBin(s_coord, xdata, ydata, eps2)
-                    binCount = getBinCount(xdata, ydata, eps2)
-                    n_xbins = binCount[0]
-                    n_ybins = binCount[1]
-                    sbinNeighborhood = getBinNeighborhood(sbin, n_xbins, n_ybins)
-                    countBins = createCountBins(xdata, ydata, eps2)
+                minPts = minPts * minPtsFactors[feature]
 
-                    for b in sbinNeighborhood:
-                        minPts += countBins[b[0]][b[1]]
-                    minPts = minPts * minPtsFactors[feature]
-
-                    spikes = DBSCAN_bins(s, eps, minPts, spikes, xdata, ydata)
+                spikes = DBSCAN_bins(s, eps, minPts, spikes, xdata, ydata)
 
         cluster.paintBucket_members = spikes
         cluster.calculateMembership(self.spikeset)
