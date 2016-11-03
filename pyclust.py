@@ -2584,17 +2584,16 @@ class PyClustMainWindow(QtGui.QMainWindow):
 
             return cluster_members
 
-        def DBSCAN_bins(s, eps, minPts, spikes, xdata, ydata):
-            "DBSCAN_bins runs DBSCAN algorithm on bins of spikes.
-            params: 
-            s is source spike.
-            eps is length and width of a bin.
-            minPts is min number of points in a bin to be considered part
-                of the cluster.
-            spikes is the set of spikes to be considered for DBSCAN.
-            xdata and ydata are the original set of spikes on x and y axes,
-                respectively."
-
+        def DBSCAN_bins(s, eps, minPts, maxPts, spikes, xdata, ydata):
+            """ DBSCAN_bins runs DBSCAN algorithm on bins of spikes.
+                params: 
+                s is source spike.
+                eps is length and width of a bin.
+                minPts (resp., maxPts) is min number of points in a bin to be 
+                    considered part of the cluster.
+                spikes is the set of spikes to be considered for DBSCAN.
+                xdata and ydata are the original set of spikes on x and y axes,
+                respectively. """
 
             eps2 = int(math.ceil(eps/2))  # smaller version of eps for bin usage
             memberBins = createBins(xdata, ydata, eps2)
@@ -2618,7 +2617,7 @@ class PyClustMainWindow(QtGui.QMainWindow):
                 count = 0
                 for b in binNeighborhood:
                     count += countBins[b[0]][b[1]]
-                if count >= minPts:  # bin is a core bin
+                if count >= minPts and count <= maxPts:  # bin is a core bin
                     for b in binNeighborhood:
                         if visited[b[0]][b[1]]:
                             continue
@@ -2680,10 +2679,14 @@ class PyClustMainWindow(QtGui.QMainWindow):
         feature = self.mp_proj.feature_x
 
         # determine minPts
-        minPts = 0
+        startPts = 0
         for b in sbinNeighborhood:
-            minPts += countBins[b[0]][b[1]]
-        minPts = int(minPts * minPtsFactors[feature])  # , say
+            startPts += countBins[b[0]][b[1]]
+
+        minPts = int(startPts * minPtsFactors[feature])  # , say
+
+        # determine maxPts
+        maxPts = int(startPts * 1.10)
 
         # determine start point
         candidates = []
@@ -2704,10 +2707,8 @@ class PyClustMainWindow(QtGui.QMainWindow):
 
         spikes = limit_spikes_to_window(spikes)
 
-        spikes = DBSCAN_bins(s, eps, minPts, spikes, xdata, ydata)
+        spikes = DBSCAN_bins(s, eps, minPts, maxPts, spikes, xdata, ydata)
         # members added by DBSCAN
-
-        spikes = DBSCAN_bins(s, eps, minPts, spikes, xdata, ydata)
 
         # repeat DBSCAN for all channels of current feature
         chans = self.spikeset.featureByName(feature).data.shape[1]
@@ -2724,7 +2725,7 @@ class PyClustMainWindow(QtGui.QMainWindow):
         
                 ydata = self.spikeset.featureByName(feature).data[:, ychan]
                 # re-calculate minPts
-                minPts = 0
+                startPts = 0
                 s_coord = (xdata[s], ydata[s])
                 sbin = getBin(s_coord, xdata, ydata, eps2)
                 binCount = getBinCount(xdata, ydata, eps2)
@@ -2734,11 +2735,12 @@ class PyClustMainWindow(QtGui.QMainWindow):
                 countBins = createCountBins(xdata, ydata, eps2)
 
                 for b in sbinNeighborhood:
-                    minPts += countBins[b[0]][b[1]]
+                    startPts += countBins[b[0]][b[1]]
 
-                minPts = minPts * minPtsFactors[feature]
+                minPts = startPts * minPtsFactors[feature]
+                maxPts = startPts * 1.10;
 
-                spikes = DBSCAN_bins(s, eps, minPts, spikes, xdata, ydata)
+                spikes = DBSCAN_bins(s, eps, minPts, maxPts, spikes, xdata, ydata)
 
         cluster.paintBucket_members = spikes
         cluster.calculateMembership(self.spikeset)
