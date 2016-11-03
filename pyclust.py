@@ -2585,6 +2585,17 @@ class PyClustMainWindow(QtGui.QMainWindow):
             return cluster_members
 
         def DBSCAN_bins(s, eps, minPts, spikes, xdata, ydata):
+            "DBSCAN_bins runs DBSCAN algorithm on bins of spikes.
+            params: 
+            s is source spike.
+            eps is length and width of a bin.
+            minPts is min number of points in a bin to be considered part
+                of the cluster.
+            spikes is the set of spikes to be considered for DBSCAN.
+            xdata and ydata are the original set of spikes on x and y axes,
+                respectively."
+
+
             eps2 = int(math.ceil(eps/2))  # smaller version of eps for bin usage
             memberBins = createBins(xdata, ydata, eps2)
             countBins = createCountBins(xdata, ydata, eps2)
