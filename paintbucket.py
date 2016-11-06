@@ -123,12 +123,10 @@ class PaintBucket:
         return ((int((spikeCoord[0] - xMin) / self.binSize)), 
                 int((spikeCoord[1] - yMin) / self.binSize))
 
-    def get_bin_neighbors(self, bin, projection):
+    def get_bin_neighbors(self, bin, xBins, yBins):
         """ Returns a list of bin coordinates neighboring
             the center coordinate bin, including the center 
             """
-
-        xBins, yBins = self.get_bin_count(projection)
 
         binNeighbors = []
         binNeighbors.append((bin[0], bin[1]))  # center
@@ -191,7 +189,6 @@ class PaintBucket:
         visited = np.array([[False] * yBins] * xBins)
 
         sCoord = (xData[s], yData[s])
-        print("calling get_bin_coord in DBSCAN_bins")
         sBin = self.get_bin_coord(sCoord, projection)
 
         # run BFS on bins, where edges are determined by
@@ -202,7 +199,7 @@ class PaintBucket:
         binsClustered.append(sBin)
         while len(queue) != 0:
             bin = queue.popleft()
-            binNeighborhood = self.get_bin_neighbors(bin, projection)
+            binNeighborhood = self.get_bin_neighbors(bin, xBins, yBins)
             count = 0
             for b in binNeighborhood:
                 count += countBins[b[0]][b[1]]
@@ -231,11 +228,10 @@ class PaintBucket:
             closest to cursor position """
 
         (xData, yData) = self.get_proj_data(projection)
-        print(cursorpos)
 
-        print("calling get_bin_coord from get_source")
+        xBins, yBins = self.get_bin_count(projection)
         sBin = self.get_bin_coord(cursorpos, projection)
-        sBinNeighbors = self.get_bin_neighbors(sBin, projection)
+        sBinNeighbors = self.get_bin_neighbors(sBin, xBins, yBins)
         memberBins = self.create_member_bins(projection)
         candidates = []
         for b in sBinNeighbors:
@@ -257,9 +253,9 @@ class PaintBucket:
         sCoord = (xData[s], yData[s])
 
         minPts = 0
-        print("calling get_bin_coord from get_minPts")
         sBin = self.get_bin_coord(sCoord, projection)
-        sBinNeighbors = self.get_bin_neighbors(sBin, projection)
+        xBins, yBins = self.get_bin_count(projection)
+        sBinNeighbors = self.get_bin_neighbors(sBin, xBins, yBins)
         countBins = self.create_count_bins(projection)
         for b in sBinNeighbors:
             minPts += countBins[b[0]][b[1]]
@@ -284,8 +280,6 @@ class PaintBucket:
 
         s = self.get_source(cursorpos, curProj)
 
-        print("s: ")
-        print(s)
         minPts = self.get_minPts(s, curProj)
         spikes = np.copy(self.spikes)
             # spikes to be considered in DBSCAN
