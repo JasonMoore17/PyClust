@@ -105,7 +105,7 @@ class PaintBucket:
 
         xMin = min(xData)
         yMin = min(yData)
-        for p in range(N):
+        for p in range(self.N):
             xBin = int((xData[p] - xMin) / self.binSize)
             yBin = int((yData[p] - yMin) / self.binSize)
             countBins[xBin][yBin] += 1
@@ -191,6 +191,7 @@ class PaintBucket:
         visited = np.array([[False] * yBins] * xBins)
 
         sCoord = (xData[s], yData[s])
+        print("calling get_bin_coord in DBSCAN_bins")
         sBin = self.get_bin_coord(sCoord, projection)
 
         # run BFS on bins, where edges are determined by
@@ -201,7 +202,7 @@ class PaintBucket:
         binsClustered.append(sBin)
         while len(queue) != 0:
             bin = queue.popleft()
-            binNeighborhood = self.get_bin_neighbors(bin, xBins, yBins)
+            binNeighborhood = self.get_bin_neighbors(bin, projection)
             count = 0
             for b in binNeighborhood:
                 count += countBins[b[0]][b[1]]
@@ -232,6 +233,7 @@ class PaintBucket:
         (xData, yData) = self.get_proj_data(projection)
         print(cursorpos)
 
+        print("calling get_bin_coord from get_source")
         sBin = self.get_bin_coord(cursorpos, projection)
         sBinNeighbors = self.get_bin_neighbors(sBin, projection)
         memberBins = self.create_member_bins(projection)
@@ -251,9 +253,12 @@ class PaintBucket:
             bin containing source member s """
 
         feature = projection[0]
-       
+        xData, yData = self.get_proj_data(projection)
+        sCoord = (xData[s], yData[s])
+
         minPts = 0
-        sBin = self.get_bin_coord(s, projection)
+        print("calling get_bin_coord from get_minPts")
+        sBin = self.get_bin_coord(sCoord, projection)
         sBinNeighbors = self.get_bin_neighbors(sBin, projection)
         countBins = self.create_count_bins(projection)
         for b in sBinNeighbors:
@@ -278,14 +283,18 @@ class PaintBucket:
         cursorpos = (event.xdata, event.ydata)
 
         s = self.get_source(cursorpos, curProj)
+
+        print("s: ")
+        print(s)
         minPts = self.get_minPts(s, curProj)
         spikes = np.copy(self.spikes)
             # spikes to be considered in DBSCAN
             
-        spikes = self.limit_spikes_to_window(spikes)
+        spikes = self.limit_spikes_to_window(spikes, curProj)
 
         spikes = self.DBSCAN_bins(s, minPts, spikes, curProj)
             # members added by DBSCAN
+
 
         # repeat DBSCAN for all projections of current feature
         chans = self.spikeset.featureByName(feature).data.shape[1]
@@ -303,5 +312,5 @@ class PaintBucket:
 
                 # cut down with another run of DBSCAN
                 spikes = self.DBSCAN_bins(s, minPts, spikes, proj)
-
+        
         return spikes
