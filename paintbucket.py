@@ -7,13 +7,13 @@ from scipy.spatial import distance
 class PaintBucket:
     """ A tool that automatically adds membership to a cluster """
 
-    def __init__(self, N, spikeset, mp_proj):
+    def __init__(self, spikeset, mp_proj):
         self.active = False
 
         # spikeset size
-        self.N = N
         self.spikeset = spikeset
-        self.spikes = np.array([True] * N)
+        self.N = spikeset.N
+        self.spikes = np.array([True] * self.N)
             # Starting spikes
 
         """ Parameters """
@@ -116,7 +116,6 @@ class PaintBucket:
         """ Return the bin coordinates that contains the spike
             at coordinate spikeCoord """
 
-        (feature, xChan, yChan) = projection
         xData, yData = self.get_proj_data(projection)
 
         xMin = min(xData)
@@ -129,7 +128,6 @@ class PaintBucket:
             the center coordinate bin, including the center 
             """
 
-        (feature, xChan, yChan) = projection
         xBins, yBins = self.get_bin_count(projection)
 
         binNeighbors = []
@@ -157,8 +155,6 @@ class PaintBucket:
         """ Cut down spikes to those within current plot limits.
             This is used to cut down running time in the case
             that paint bucket "leaks" out. """
-
-        (feature, xChan, yChan) = projection
 
         if self.mp_proj.autozoom_mode:
             limits = self.mp_proj.autozoom_limits
@@ -279,7 +275,6 @@ class PaintBucket:
         curProj = (feature, curXChan, curYChan)
             # current projection
 
-        xData, yData = self.get_proj_data(curProj)
         cursorpos = (event.xdata, event.ydata)
 
         s = self.get_source(cursorpos, curProj)
