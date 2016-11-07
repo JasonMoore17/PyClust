@@ -18,10 +18,10 @@ class PaintBucket:
 
         """ Parameters """
         self.binSize = 5
-        self.minPtsFactors = {'Peak': 0.08, 'Valley': 0.04, 
+        self.minPtsFactors = {'Peak': 0.12, 'Valley': 0.04, 
                             'Trough': 0.04, 'fPCA': 0.04, 'wPCA': 0.04}
 
-        self.maxIncreaseFactor = 1.20
+        self.maxIncreaseFactor = 1.10
 
         self.mp_proj = mp_proj
 
@@ -89,9 +89,10 @@ class PaintBucket:
         xMin = min(xData)
         yMin = min(yData)
         for p in range(self.N):
-            xBin = int((xData[p] - xMin)/self.binSize)
-            yBin = int((yData[p] - yMin)/self.binSize)
-            bins[xBin][yBin].append(p)
+            if self.spikes[p]:
+                xBin = int((xData[p] - xMin)/self.binSize)
+                yBin = int((yData[p] - yMin)/self.binSize)
+                bins[xBin][yBin].append(p)
 
         return bins
 
@@ -108,9 +109,10 @@ class PaintBucket:
         xMin = min(xData)
         yMin = min(yData)
         for p in range(self.N):
-            xBin = int((xData[p] - xMin) / self.binSize)
-            yBin = int((yData[p] - yMin) / self.binSize)
-            countBins[xBin][yBin] += 1
+            if self.spikes[p]:
+                xBin = int((xData[p] - xMin) / self.binSize)
+                yBin = int((yData[p] - yMin) / self.binSize)
+                countBins[xBin][yBin] += 1
 
         return countBins
 
@@ -168,10 +170,9 @@ class PaintBucket:
                              and limits[1][0] <= yData[i] <= limits[1][1])
         return spikes
 
-    def get_neighborhood_count(self, bin, countBins):
+    def get_neighborhood_count(self, binNeighborhood, countBins):
         """ Returns the maximum allowed density on a bin for the cluster """
         count = 0
-        binNeighborhood = self.get_bin_neighbors
         for b in binNeighborhood:
             count += countBins[b[0]][b[1]]
         return count * self.maxIncreaseFactor
@@ -215,18 +216,24 @@ class PaintBucket:
             for b in binNeighborhood:
                 count += countBins[b[0]][b[1]]
 
-            maxCount = count * self.maxIncreaseFactor
-            if count >= minPts:  
+            #maxBinCount = countBins[bin[0]][bin[1]] * self.maxIncreaseFactor
+            maxPts = self.get_neighborhood_count(binNeighborhood, countBins)
+            maxPts = maxPts * self.maxIncreaseFactor
+            if minPts <= count:
                 # bin is a core bin
                 for b in binNeighborhood:
                     if visited[b[0]][b[1]]:
-                        continue
-                    density = self.get_neighborhood_count(b, countBins)
-                    if density < maxCount:
-                        continue
-                    visited[b[0]][b[1]] = True
-                    binsClustered.append(b)
-                    queue.append(b)
+                            continue
+                    otherBinNeighborhood = self.get_bin_neighbors(b, 
+                                               xBins, yBins)
+                    otherCount = self.get_neighborhood_count(
+                            otherBinNeighborhood, 
+                            countBins)
+                    if otherCount < maxPts:
+                        '''if countBins[b[0]][b[1]] < maxBinCount:'''
+                        visited[b[0]][b[1]] = True
+                        binsClustered.append(b)
+                        queue.append(b)
 
         # add membership on all spikes in bins visited by BFS
         members = np.array([False] * self.N)  
@@ -305,7 +312,7 @@ class PaintBucket:
         spikes = self.DBSCAN_bins(s, minPts, spikes, curProj)
             # members added by DBSCAN
 
-
+        '''
         # repeat DBSCAN for all projections of current feature
         chans = self.spikeset.featureByName(feature).data.shape[1]
         for xChan in range(chans - 1):
@@ -322,5 +329,5 @@ class PaintBucket:
 
                 # cut down with another run of DBSCAN
                 spikes = self.DBSCAN_bins(s, minPts, spikes, proj)
-        
         return spikes
+        '''
