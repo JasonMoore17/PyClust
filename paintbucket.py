@@ -21,6 +21,8 @@ class PaintBucket:
         self.minPtsFactors = {'Peak': 0.08, 'Valley': 0.04, 
                             'Trough': 0.04, 'fPCA': 0.04, 'wPCA': 0.04}
 
+        self.maxIncreaseFactor = 1.20
+
         self.mp_proj = mp_proj
 
     def set_spikes(self, spikes):
@@ -146,8 +148,8 @@ class PaintBucket:
             binNeighbors.append((bin[0] - 1, bin[1] - 1))  # bot left
         if bin[0] - 1 >= 0:
             binNeighbors.append((bin[0] - 1, bin[1]))  # left
-
         return binNeighbors
+
 
     def limit_spikes_to_window(self, spikes, projection):
         """ Cut down spikes to those within current plot limits.
@@ -165,6 +167,15 @@ class PaintBucket:
                 spikes[i] = (limits[0][0] <= xData[i] <= limits[0][1]
                              and limits[1][0] <= yData[i] <= limits[1][1])
         return spikes
+
+    def get_neighborhood_count(self, bin, countBins):
+        """ Returns the maximum allowed density on a bin for the cluster """
+        count = 0
+        binNeighborhood = self.get_bin_neighbors
+        for b in binNeighborhood:
+            count += countBins[b[0]][b[1]]
+        return count * self.maxIncreaseFactor
+
 
     def DBSCAN_bins(self, s, minPts, spikes, projection):
         """ DBSCAN_bins runs a modified DBSCAN algorithm 
@@ -203,10 +214,15 @@ class PaintBucket:
             count = 0
             for b in binNeighborhood:
                 count += countBins[b[0]][b[1]]
+
+            maxCount = count * self.maxIncreaseFactor
             if count >= minPts:  
                 # bin is a core bin
                 for b in binNeighborhood:
                     if visited[b[0]][b[1]]:
+                        continue
+                    density = self.get_neighborhood_count(b, countBins)
+                    if density < maxCount:
                         continue
                     visited[b[0]][b[1]] = True
                     binsClustered.append(b)
