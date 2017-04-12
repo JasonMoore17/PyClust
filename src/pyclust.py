@@ -19,8 +19,8 @@ import time
 
 import six
 
-#from gui2 import Ui_MainWindow
-from mygui import Ui_MainWindow
+from gui2 import Ui_MainWindow
+#from mygui import Ui_MainWindow
 
 import spikeset
 import spikeset_io

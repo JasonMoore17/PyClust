@@ -11,7 +11,7 @@ import numpy as np
 
 #from spikeset import Spikeset
 import spikeset
-import nlxio
+#import nlxio
 
 
 def spikesetFromNtt(filename):
