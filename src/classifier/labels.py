@@ -21,6 +21,19 @@ def dotspike2csv(dotSpikeFilePath):
 
         # append rows to csv
 """
+
+# if the original waveform wv has 60 timestamps, the output is
+# a waveform with 120 timestamps
+def double_resolution(wv):
+    wv_inbetween = []
+    for i in range(wv.size - 1):
+        wv_inbetween.append((wv[i] + wv[i + 1]) / 2.)
+    wv_inbetween.append(wv[wv.size - 1])
+    wv_inbetween = np.array(wv_inbetween)
+    wv_new = np.array([[wv],[wv_inbetween]]).transpose().flatten()
+    return wv_new
+
+
 def load_spikeset(spikeFile):
     if not spikeFile.endswith('.spike'):
         return None
@@ -51,7 +64,7 @@ def get_fwhm(wv):
     voffset = np.vectorize(lambda x: x - min)
     wv = voffset(wv)
 
-    plt.plot(range(60), wv)
+    plt.plot(range(120), wv)
     plt.show()
 
     # find index for right half max
@@ -85,7 +98,8 @@ def get_peak2ValTime(wv):
 def get_label(cluster):
     nChans = cluster.wv_mean.shape[1]
     for chan in range(nChans):
-        fwhm = get_fwhm(cluster.wv_mean[:, chan])
+        wv = double_resolution(cluster.wv_mean[:,chan])
+        fwhm = get_fwhm(wv)
     return 2
 
 def generate_labels(path):
