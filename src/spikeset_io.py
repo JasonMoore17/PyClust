@@ -11,7 +11,7 @@ import numpy as np
 
 #from spikeset import Spikeset
 import spikeset
-#import nlxio
+import nlxio
 
 
 def spikesetFromNtt(filename):
@@ -27,7 +27,7 @@ def readStringFromBinary(f):
         return ''
 
 
-def spikesetFromDotSpike(filename):
+def spikesetFromDotSpike(filename, verbose=True):
     f = open(filename, 'rb')
     # Everything is little endian
     # A .spike record is as folows:
@@ -48,27 +48,37 @@ def spikesetFromDotSpike(filename):
         f.close()
         return
 
-    print('')
-    print('Loading', filename)
-    print('Format version #', version_no)
+    if (verbose):
+        print('')
+        print('Loading', filename)
+        print('Format version #', version_no)
     num_spikes, = struct.unpack('<Q', f.read(8))
-    print('Num spikes', num_spikes)
+    if (verbose):
+        print('Num spikes', num_spikes)
     num_chans, = struct.unpack('<H', f.read(2))
-    print('Num channels', num_chans)
+    if (verbose):
+        print('Num channels', num_chans)
     num_samps, = struct.unpack('<H', f.read(2))
-    print('Num samples', num_samps)
+    if (verbose):
+        print('Num samples', num_samps)
     fs, = struct.unpack('<I', f.read(4))
-    print('Sampling frequency', fs)
+    if (verbose):
+        print('Sampling frequency', fs)
     peak_align, = struct.unpack('<H', f.read(2))
-    print('Peak alignment point', peak_align)
+    if (verbose):
+        print('Peak alignment point', peak_align)
     uvolt_conversion = np.array(struct.unpack('<' + ('d' * num_chans), f.read(8 * num_chans)))
-    print('Microvolt conversion factor', uvolt_conversion)
+    if (verbose):
+        print('Microvolt conversion factor', uvolt_conversion)
     subjectstr = readStringFromBinary(f)
-    print('Subject string', subjectstr)
+    if (verbose):
+        print('Subject string', subjectstr)
     datestr = readStringFromBinary(f)
-    print('Date string', datestr)
+    if (verbose):
+        print('Date string', datestr)
     filterstr = readStringFromBinary(f)
-    print('Filter string', filterstr)
+    if (verbose):
+        print('Filter string', filterstr)
 
     # Records:
     # uint64 - timestamp                    bytes 0:8
@@ -87,13 +97,13 @@ def spikesetFromDotSpike(filename):
                              session=datestr)
 
 
-def loadSpikeset(filename):
+def loadSpikeset(filename, verbose=True):
     # Load the file
     if filename.endswith('.ntt'):
         ss = spikesetFromNtt(filename)
         featureFile = filename + '.feat'
     elif filename.endswith('.spike'):
-        ss = spikesetFromDotSpike(filename)
+        ss = spikesetFromDotSpike(filename, verbose)
         featureFile = filename + '.feat'
     else:
         return None
