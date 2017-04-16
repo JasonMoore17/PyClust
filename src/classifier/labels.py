@@ -3,6 +3,7 @@ import spikeset
 import os
 import sys
 import numpy as np
+import matplotlib.pyplot as plt
 
 # returns 'P' (Pyramidal), 'I' (Interneuron), or 'J' (Junk)
 def compute_label(cluster):
@@ -38,7 +39,42 @@ def load_spikeset(spikeFile):
 
 # compute full width at half maximum (FWHM)
 def get_fwhm(wv):
-    return None
+    max = np.amax(wv)
+    argmax = np.argmax(wv)
+    right = wv[argmax:]
+    left = wv[:argmax]
+    argRhm = None
+    argLhm = None
+
+    # align waveform to 0 for baseline left of amplitude
+    min = np.amin(wv[:argmax])
+    voffset = np.vectorize(lambda x: x - min)
+    wv = voffset(wv)
+
+    plt.plot(range(60), wv)
+    plt.show()
+
+    # find index for right half max
+    for i in range(right.size - 2):
+        if right[i] >= max / 2. >= right[i + 2]:
+            argRhm = i + 1
+            break
+        if right[i] <= max / 2. <= right[i + 2]:
+            argRhm = i + 1
+            break
+
+    # find index for left half max
+    for i in np.flipud(range(left.size - 2)):
+        if left[i + 2] >= max / 2. >= left[i]:
+            argLhm = i + 1
+            break
+        if left[i + 2] <= max / 2. <= left[i]:
+            argLhm = i + 1
+            break
+    if argRhm == None or argLhm == None:
+        return None
+    fwhm = (argRhm + argmax) - argLhm
+    return fwhm
 
 
 # compute time from peak to trough (valley)
@@ -47,8 +83,9 @@ def get_peak2ValTime(wv):
 
 # 0 = Pyramidal; 1 = Interneuron; 2 = Neither
 def get_label(cluster):
-    wv_mean = cluster.wv_mean
-    C = cluster.wv_mean.shape(1)
+    nChans = cluster.wv_mean.shape[1]
+    for chan in range(nChans):
+        fwhm = get_fwhm(cluster.wv_mean[:, chan])
     return 2
 
 def generate_labels(path):
@@ -60,7 +97,8 @@ def generate_labels(path):
         if not os.path.exists(boundsPath):
             continue
         ss = load_spikeset(spikeFile)
-        waveform = ss.spikes[0, :, 0]
+        for cluster in ss.clusters:
+            fwhm = get_label(cluster)
 
         """filePathPrefix, ext = os.path.splitext(dotSpikeFilePath)
         if ext == ".spike":
