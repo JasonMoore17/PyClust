@@ -52,7 +52,6 @@ def load_spikeset(spikeFile):
 
 # compute full width at half maximum (FWHM)
 def get_fwhm(wv):
-    max = np.amax(wv)
     argmax = np.argmax(wv)
     right = wv[argmax:]
     left = wv[:argmax]
@@ -60,33 +59,17 @@ def get_fwhm(wv):
     argLhm = None
 
     # align waveform to 0 for baseline left of amplitude
-    min = np.amin(wv[:argmax])
+    min = np.min(wv[:argmax])
     voffset = np.vectorize(lambda x: x - min)
     wv = voffset(wv)
 
-    plt.plot(range(120), wv)
-    plt.show()
+    max = np.amax(wv)
 
-    # find index for right half max
-    for i in range(right.size - 2):
-        if right[i] >= max / 2. >= right[i + 2]:
-            argRhm = i + 1
-            break
-        if right[i] <= max / 2. <= right[i + 2]:
-            argRhm = i + 1
-            break
+    vdist = np.vectorize(lambda x: abs(max / 2. - x))
+    argLhm = np.argmin(vdist(wv[:argmax]))
+    argRhm = np.argmin(vdist(wv[argmax:])) + argmax
 
-    # find index for left half max
-    for i in np.flipud(range(left.size - 2)):
-        if left[i + 2] >= max / 2. >= left[i]:
-            argLhm = i + 1
-            break
-        if left[i + 2] <= max / 2. <= left[i]:
-            argLhm = i + 1
-            break
-    if argRhm == None or argLhm == None:
-        return None
-    fwhm = (argRhm + argmax) - argLhm
+    fwhm = argRhm - argLhm
     return fwhm
 
 
