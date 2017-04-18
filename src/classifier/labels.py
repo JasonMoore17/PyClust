@@ -53,10 +53,6 @@ def load_spikeset(spikeFile):
 # compute full width at half maximum (FWHM)
 def get_fwhm(wv):
     argmax = np.argmax(wv)
-    right = wv[argmax:]
-    left = wv[:argmax]
-    argRhm = None
-    argLhm = None
 
     # align waveform to 0 for baseline left of amplitude
     min = np.min(wv[:argmax])
@@ -68,21 +64,27 @@ def get_fwhm(wv):
     vdist = np.vectorize(lambda x: abs(max / 2. - x))
     argLhm = np.argmin(vdist(wv[:argmax]))
     argRhm = np.argmin(vdist(wv[argmax:])) + argmax
-
-    fwhm = argRhm - argLhm
-    return fwhm
+    return argRhm - argLhm
 
 
-# compute time from peak to trough (valley)
-def get_peak2ValTime(wv):
-    return None
+# compute time from peak to valley
+def get_p2vt(wv):
+    peakIndex = np.argmax(wv)
+    valleyIndex = np.argmin(wv[peakIndex:]) + peakIndex
+
+    plt.plot(range(120), wv)
+    plt.show()
+
+    return valleyIndex - peakIndex
 
 # 0 = Pyramidal; 1 = Interneuron; 2 = Neither
 def get_label(cluster):
     nChans = cluster.wv_mean.shape[1]
     for chan in range(nChans):
-        wv = double_resolution(cluster.wv_mean[:,chan])
+        wv = double_resolution(cluster.wv_mean[:, chan])
         fwhm = get_fwhm(wv)
+        p2vt = get_p2vt(wv)
+        print('hahaha')
     return 2
 
 def generate_labels(path):
