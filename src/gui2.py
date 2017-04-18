@@ -6,7 +6,6 @@
 #
 # WARNING! All changes made in this file will be lost!
 
-#from PyQt4 import QtCore, QtGui
 from PySide import QtCore, QtGui
 
 try:
@@ -393,7 +392,7 @@ class Ui_MainWindow(object):
         self.scrollArea_cluster_list.setWidgetResizable(True)
         self.scrollArea_cluster_list.setObjectName(_fromUtf8("scrollArea_cluster_list"))
         self.scrollAreaWidgetContents = QtGui.QWidget()
-        self.scrollAreaWidgetContents.setGeometry(QtCore.QRect(0, 0, 196, 519))
+        self.scrollAreaWidgetContents.setGeometry(QtCore.QRect(0, 0, 85, 498))
         self.scrollAreaWidgetContents.setObjectName(_fromUtf8("scrollAreaWidgetContents"))
         self.scrollArea_cluster_list.setWidget(self.scrollAreaWidgetContents)
         self.gridLayout_4.addWidget(self.scrollArea_cluster_list, 1, 0, 1, 1)
@@ -496,9 +495,9 @@ class Ui_MainWindow(object):
         self.comboBox_labels.setDuplicatesEnabled(False)
         self.comboBox_labels.setObjectName(_fromUtf8("comboBox_labels"))
         self.horizontalLayout_23.addWidget(self.comboBox_labels)
-        self.pushButton_addToDataset = QtGui.QPushButton(self.frame_5)
-        self.pushButton_addToDataset.setObjectName(_fromUtf8("pushButton_addToDataset"))
-        self.horizontalLayout_23.addWidget(self.pushButton_addToDataset)
+        self.pushButton_saveLabeledCluster = QtGui.QPushButton(self.frame_5)
+        self.pushButton_saveLabeledCluster.setObjectName(_fromUtf8("pushButton_saveLabeledCluster"))
+        self.horizontalLayout_23.addWidget(self.pushButton_saveLabeledCluster)
         self.pushButton_wavecutter_done = QtGui.QPushButton(self.frame_5)
         self.pushButton_wavecutter_done.setObjectName(_fromUtf8("pushButton_wavecutter_done"))
         self.horizontalLayout_23.addWidget(self.pushButton_wavecutter_done)
@@ -1007,7 +1006,7 @@ class Ui_MainWindow(object):
         self.pushButton_wavecutter_remove_limit.setText(_translate("MainWindow", "Remove Limits", None))
         self.radioButton_wavecutter.setText(_translate("MainWindow", "Waveform Cutter", None))
         self.radioButton_outlier.setText(_translate("MainWindow", "Outlier Distance", None))
-        self.pushButton_addToDataset.setText(_translate("MainWindow", "Add Waveforms to Dataset", None))
+        self.pushButton_saveLabeledCluster.setText(_translate("MainWindow", "Add Waveforms to Dataset", None))
         self.pushButton_wavecutter_done.setText(_translate("MainWindow", "Done", None))
         self.pushButton_autotrim_apply.setText(_translate("MainWindow", "Apply Limits", None))
         self.pushButton_autotrim_cancel.setText(_translate("MainWindow", "Cancel", None))

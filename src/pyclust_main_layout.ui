@@ -833,8 +833,8 @@
                  <rect>
                   <x>0</x>
                   <y>0</y>
-                  <width>196</width>
-                  <height>519</height>
+                  <width>85</width>
+                  <height>498</height>
                  </rect>
                 </property>
                </widget>
@@ -1050,7 +1050,7 @@
             </widget>
            </item>
            <item>
-            <widget class="QPushButton" name="pushButton_addToDataset">
+            <widget class="QPushButton" name="pushButton_saveLabeledCluster">
              <property name="text">
               <string>Add Waveforms to Dataset</string>
              </property>

@@ -27,6 +27,9 @@ import spikeset_io
 import featurewidget
 import multiplotwidget
 import boundaries
+
+# classifier module
+import dataset
 #import features
 
 
@@ -610,6 +613,10 @@ class PyClustMainWindow(QtGui.QMainWindow):
         self.limit_mode = False
         self.unsaved = False
 
+        # data saver and loader object for classifier machine learning
+        self.dataset = None
+        self.ui.comboBox_labels.addItems(['Pyramidal', 'Interneuron', 'Junk'])
+
         # Create the undo stack and actions
         self.undoStack = QtGui.QUndoStack(self)
         self.ui.actionUndo = self.undoStack.createUndoAction(self)
@@ -708,6 +715,10 @@ class PyClustMainWindow(QtGui.QMainWindow):
 
         self.ui.pushButton_merge_apply.clicked.connect(self.merge_apply)
         self.ui.pushButton_merge_cancel.clicked.connect(self.merge_cancel)
+
+        # training data for classifier
+        self.ui.pushButton_saveLabeledCluster.clicked.connect(
+                self.action_saveLabeledCluster)
 
         self.ui.label_subjectid.setText('')
         self.ui.label_session.setText('')
@@ -935,6 +946,7 @@ class PyClustMainWindow(QtGui.QMainWindow):
 
         # list containing the cluster check/radio/color buttons
         self.cluster_ui_buttons = []
+
 
     def hide_show_all_clusters(self, hidden):
         radio = self.activeClusterRadioButton()
@@ -2253,50 +2265,6 @@ class PyClustMainWindow(QtGui.QMainWindow):
                 self.ui.comboBox_feature_y_chan.setCurrentIndex(0)
 
 
-
-            """
-            #self.mp_proj.feature_x = self.mp_proj_multi.feature
-            #self.mp_proj.feature_y = self.mp_proj_multi.feature
-            self.ui.checkBox_overview.setChecked(False)
-
-            self.ui.comboBox_feature_x_chan.blockSignals(True)
-            self.ui.comboBox_feature_y_chan.blockSignals(True)
-
-            self.ui.comboBox_feature_x_chan.setCurrentIndex(0)
-            self.ui.comboBox_feature_y_chan.setCurrentIndex(0)
-
-            # iterate projections until we hit the correct one
-            count = 0
-            while count != self.mp_proj_multi.selectedSubplot:
-                count += 1
-
-                # if we're at the end of the current y channel range
-                if (self.ui.comboBox_feature_y_chan.currentIndex()
-                        == self.ui.comboBox_feature_y_chan.count() - 1):
-                    # but not at the end of the current x channel range
-                    if not (self.ui.comboBox_feature_x_chan.currentIndex()
-                                == self.ui.comboBox_feature_x_chan.count() - 1):
-                        # step x to the next projection
-                        self.ui.comboBox_feature_x_chan.setCurrentIndex(
-                            self.ui.comboBox_feature_x_chan.currentIndex() + 1)
-                else:
-                    self.ui.comboBox_feature_y_chan.setCurrentIndex(
-                        self.ui.comboBox_feature_y_chan.currentIndex() + 1)
-
-                print("current x, y:")
-                print(self.ui.comboBox_feature_x_chan.currentIndex())
-                print(self.ui.comboBox_feature_y_chan.currentIndex())
-
-            self.mp_proj.chan_x = self.ui.comboBox_feature_x_chan.currentIndex()
-            self.mp_proj.chan_y = self.ui.comboBox_feature_y_chan.currentIndex()
-
-            self.ui.comboBox_feature_x_chan.blockSignals(False)
-            self.ui.comboBox_feature_y_chan.blockSignals(False)
-
-            #self.feature_channel_x_changed(self.ui.comboBox_feature_x_chan.currentIndex())
-            #self.feature_channel_y_changed(self.ui.comboBox_feature_y_chan.currentIndex())
-            """
-
     def actionAutozoom_triggered(self):
         if self.ui.agroup_autozoom.checkedAction() == self.ui.actionAutozoom_None:
             self.mp_proj.autozoom_mode = False
@@ -2311,6 +2279,14 @@ class PyClustMainWindow(QtGui.QMainWindow):
             elif self.ui.agroup_autozoom.checkedAction() == self.ui.actionAutozoom_50:
                 self.mp_proj.autozoom_factor = 0.50
         self.mp_proj.featureRedrawRequired.emit()
+
+
+    def action_saveLabeledCluster(self):
+        if self.dataset == None:
+            self.dataset = dataset.Dataset(self.ui.label_subjectid.text(),
+                    self.ui.label_session.text(), self.ui.label_fname.text())  
+
+
 
     def keyPressEvent(self, e): 
         ''' Ugly keybindings...but it works. '''
