@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1291</width>
+    <width>1329</width>
     <height>885</height>
    </rect>
   </property>
@@ -27,7 +27,7 @@
        </sizepolicy>
       </property>
       <property name="currentIndex">
-       <number>0</number>
+       <number>1</number>
       </property>
       <widget class="QWidget" name="page">
        <layout class="QVBoxLayout" name="verticalLayout_4">
@@ -635,6 +635,23 @@
                   <property name="horizontalSpacing">
                    <number>2</number>
                   </property>
+                  <item row="0" column="3">
+                   <widget class="QLabel" name="label_24">
+                    <property name="font">
+                     <font>
+                      <pointsize>7</pointsize>
+                      <weight>75</weight>
+                      <bold>true</bold>
+                     </font>
+                    </property>
+                    <property name="text">
+                     <string>Del</string>
+                    </property>
+                    <property name="alignment">
+                     <set>Qt::AlignCenter</set>
+                    </property>
+                   </widget>
+                  </item>
                   <item row="0" column="1">
                    <widget class="QPushButton" name="pushButton_add_cluster">
                     <property name="sizePolicy">
@@ -746,23 +763,6 @@
                     </property>
                    </widget>
                   </item>
-                  <item row="0" column="3">
-                   <widget class="QLabel" name="label_24">
-                    <property name="font">
-                     <font>
-                      <pointsize>7</pointsize>
-                      <weight>75</weight>
-                      <bold>true</bold>
-                     </font>
-                    </property>
-                    <property name="text">
-                     <string>Del</string>
-                    </property>
-                    <property name="alignment">
-                     <set>Qt::AlignCenter</set>
-                    </property>
-                   </widget>
-                  </item>
                   <item row="1" column="3">
                    <widget class="QLabel" name="label_25">
                     <property name="font">
@@ -833,8 +833,8 @@
                  <rect>
                   <x>0</x>
                   <y>0</y>
-                  <width>201</width>
-                  <height>498</height>
+                  <width>196</width>
+                  <height>519</height>
                  </rect>
                 </property>
                </widget>
@@ -857,7 +857,7 @@
           <widget class="QWidget" name="page_3">
            <layout class="QVBoxLayout" name="verticalLayout_7">
             <item>
-             <widget class="MatplotlibWidget" name="mplwidget_wavecutter">
+             <widget class="MatplotlibWidget" name="mplwidget_wavecutter" native="true">
               <property name="autoFillBackground">
                <bool>true</bool>
               </property>
@@ -974,7 +974,7 @@
            </layout>
           </widget>
           <widget class="QWidget" name="page_4">
-           <widget class="MatplotlibWidget" name="mplwidget_outliers">
+           <widget class="MatplotlibWidget" name="mplwidget_outliers" native="true">
             <property name="geometry">
              <rect>
               <x>20</x>
@@ -1037,6 +1037,26 @@
             </spacer>
            </item>
            <item>
+            <widget class="QComboBox" name="comboBox_labels">
+             <property name="maxVisibleItems">
+              <number>3</number>
+             </property>
+             <property name="maxCount">
+              <number>3</number>
+             </property>
+             <property name="duplicatesEnabled">
+              <bool>false</bool>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="pushButton_addToDataset">
+             <property name="text">
+              <string>Add Waveforms to Dataset</string>
+             </property>
+            </widget>
+           </item>
+           <item>
             <widget class="QPushButton" name="pushButton_wavecutter_done">
              <property name="text">
               <string>Done</string>
@@ -1082,7 +1102,7 @@
          </layout>
         </item>
         <item>
-         <widget class="MatplotlibWidget" name="mplwidget_autotrim">
+         <widget class="MatplotlibWidget" name="mplwidget_autotrim" native="true">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
             <horstretch>0</horstretch>
@@ -1141,7 +1161,7 @@
            </layout>
           </item>
           <item>
-           <widget class="MatplotlibWidget" name="mplwidget_merge_wv">
+           <widget class="MatplotlibWidget" name="mplwidget_merge_wv" native="true">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Expanding" vsizetype="Maximum">
               <horstretch>0</horstretch>
@@ -1180,7 +1200,7 @@
          </layout>
         </item>
         <item>
-         <widget class="MatplotlibWidget" name="mplwidget_merge">
+         <widget class="MatplotlibWidget" name="mplwidget_merge" native="true">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
             <horstretch>0</horstretch>
@@ -1299,7 +1319,7 @@
            </layout>
           </item>
           <item>
-           <widget class="MatplotlibWidget" name="mplwidget_isi">
+           <widget class="MatplotlibWidget" name="mplwidget_isi" native="true">
             <property name="minimumSize">
              <size>
               <width>247</width>
@@ -1699,7 +1719,7 @@
            </layout>
           </item>
           <item>
-           <widget class="MatplotlibWidget" name="mplwidget_waveform">
+           <widget class="MatplotlibWidget" name="mplwidget_waveform" native="true">
             <property name="maximumSize">
              <size>
               <width>291</width>
@@ -1722,7 +1742,7 @@
            </spacer>
           </item>
           <item>
-           <widget class="MatplotlibWidget" name="mplwidget_drift"/>
+           <widget class="MatplotlibWidget" name="mplwidget_drift" native="true"/>
           </item>
          </layout>
         </widget>
@@ -1737,8 +1757,8 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1291</width>
-     <height>26</height>
+     <width>1329</width>
+     <height>25</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
