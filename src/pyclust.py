@@ -70,6 +70,16 @@ class PyClustMainWindow(QtGui.QMainWindow):
         self.ui.stackedWidget.setCurrentIndex(1)
         self.updateWavecutterPlot()
 
+        # conditionally disable save-labeled-cluster button
+        clust_num_h = filter(lambda (i, c): self.activeClusterRadioButton().cluster_reference
+                                            is c, enumerate(self.spikeset.clusters))
+        clust_num = clust_num_h[0][0] if not clust_num_h == [] else None
+        if self.dataset.is_saved(self.ui.label_subjectid.text(), self.ui.label_session.text(),
+                                 self.ui.label_fname.text(), clust_num):
+            self.ui.pushButton_saveLabeledCluster.setEnabled(False)
+        else:
+            self.ui.pushButton_saveLabeledCluster.setEnabled(True)
+
     def switch_to_maindisplay(self):
         self.ui.stackedWidget.setCurrentIndex(0)
         self.updateFeaturePlot()
@@ -1568,6 +1578,25 @@ class PyClustMainWindow(QtGui.QMainWindow):
             os.path.splitext(os.path.split(fname)[1])[0])
         self.curfile = fname
 
+        # Load info to keep track of which clusters have been added to Dataset for ML
+        if self.dataset == None:
+            self.dataset = dataset.Dataset(self.ui.label_subjectid.text(),
+                    self.ui.label_session.text(), self.ui.label_fname.text())
+        else:
+            self.dataset.subject = self.ui.label_subjectid.text()
+            self.dataset.session = self.ui.label_session.text()
+            self.dataset.fname = self.ui.label_fname.text()
+
+        # conditionally disable save-labeled-cluster button
+        clust_num_h = filter(lambda (i, c): self.activeClusterRadioButton().cluster_reference
+                                            is c, enumerate(self.spikeset.clusters))
+        clust_num = clust_num_h[0][0] if not clust_num_h == [] else None
+        if self.dataset.is_saved(self.ui.label_subjectid.text(), self.ui.label_session.text(),
+                                 self.ui.label_fname.text(), clust_num):
+            self.ui.pushButton_saveLabeledCluster.setEnabled(False)
+        else:
+            self.ui.pushButton_saveLabeledCluster.setEnabled(True)
+
         self.undoStack.clear()
 
         self.t_bins = np.arange(self.spikeset.time[0],
@@ -2286,11 +2315,18 @@ class PyClustMainWindow(QtGui.QMainWindow):
         if self.dataset == None:
             self.dataset = dataset.Dataset(self.ui.label_subjectid.text(),
                     self.ui.label_session.text(), self.ui.label_fname.text())  
-        self.dataset.make_path()
+        #self.dataset.make_path()
         clust = self.activeClusterRadioButton().cluster_reference
-        self.dataset.cluster_to_file(self.spikeset, clust, 
-                self.ui.comboBox_labels.currentIndex())
 
+        # get cluster number
+        index_helper = filter(lambda (i, c): clust is c, enumerate(self.spikeset.clusters))
+        if not index_helper == []:
+            clust_num = index_helper[0][0]
+        else:
+            clust_num = None
+        label = self.ui.comboBox_labels.currentIndex()
+        self.dataset.cluster_to_file(self.spikeset, clust, clust_num, label)
+        self.ui.pushButton_saveLabeledCluster.setEnabled(False)
 
 
     def keyPressEvent(self, e): 

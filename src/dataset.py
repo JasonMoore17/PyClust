@@ -6,9 +6,6 @@
 
 import os
 import numpy as np
-import sys
-import spikeset
-
 
 class Dataset:
     def __init__(self, subject=None, session=None, fname=None):
@@ -22,32 +19,31 @@ class Dataset:
         self.fname = fname
 
         # keeps track of which file and cluster has been added
-        self.added = set()
+        self.saved = set()
 
     # returns the directory path for the new data
-    def get_file_path(self):
+    def __get_file_path(self):
         if self.subject == None or self.session == None:
             return None
         return os.path.join(self.root, self.subject, self.session)
 
     # Creates path for new file if it does not exist
     def make_path(self):
-        path = self.get_file_path()
+        path = self.__get_file_path()
         if not os.path.exists(path):
             os.makedirs(path)
 
+    def is_saved(self, subject, session, fname, clust_num):
+        return (subject, session, fname, clust_num) in self.saved
+
     # saves labeled cluster members to file ; returns success or failure
-    def cluster_to_file(self, ss, clust, label, fname=None):
-        pathname = self.get_file_path()
+    def cluster_to_file(self, ss, clust, clust_num, label, fname=None):
+        pathname = self.__get_file_path()
         if not pathname:
             return False
 
         if label < 1 or label > 3:
             return False
-
-        cur_path = os.path.dirname(__file__)
-        raw_data_path = os.path.join(cur_path, '..', '..', 'data')
-        labeled_data_path = os.path.join(cur_path, 'classifier', 'data')
 
         if fname == None:
             fname = os.path.join(pathname, self.fname + '.csv')
@@ -66,4 +62,6 @@ class Dataset:
 
         with open(fname, 'a') as f:
             np.savetxt(f, rows, fmt='%.1e', delimiter=',', header='label,waveform')
+
+        self.saved.add((self.subject, self.session, self.fname, clust_num))
         return True
