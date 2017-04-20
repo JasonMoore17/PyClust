@@ -41,22 +41,33 @@ def get_label(cluster, dt_ms):
         valleyIndex = np.argmin(wv[peakIndex:]) + peakIndex
         return (valleyIndex - peakIndex) * dt_ms
 
-    wv2xres, dt_ms2xres = double_resolution(cluster.wv_mean[:, 0], dt_ms)
-    fwhm = get_fwhm(wv2xres, dt_ms2xres)
-    p2vt = get_p2vt(wv2xres, dt_ms2xres)
+    chans = cluster.wv_mean.shape[1]
+    counts = np.zeros(3)
 
-    if cluster.stats['csi'] == np.NAN:
-        return 0  # unlabeled
-    elif cluster.stats['csi'] > 10:  # Pyramidal
-        if 1.6 * fwhm + p2vt > 0.95:
-            return 1  # Pyramidal
-        else:
+    for chan in range(chans):
+        wv = cluster.wv_mean[:, chan]
+        wv2xres, dt_ms2xres = double_resolution(wv, dt_ms)
+        fwhm = get_fwhm(wv2xres, dt_ms2xres)
+        p2vt = get_p2vt(wv2xres, dt_ms2xres)
+        if cluster.stats['csi'] == np.NAN:
             return 0  # unlabeled
+        elif cluster.stats['csi'] > 10:  # Pyramidal
+            if 1.6 * fwhm + p2vt > 0.95:
+                counts[1] += 1  # Pyramidal
+            else:
+                counts[0] += 1  # unlabeled
+        else:
+            if 1.6 * fwhm + p2vt < 0.95:
+                counts[2] += 1  # Interneuron
+            else:
+                counts[0] += 1  # unlabeled
+
+    if counts[1] > counts[2]:
+        return 1
+    elif counts[2] > counts[1]:
+        return 2
     else:
-        if 1.6 * fwhm + p2vt < 0.95:
-            return 2  # Interneuron
-        else:
-            return 0  # unlabeled
+        return 0
 
 
 class Dataset:
