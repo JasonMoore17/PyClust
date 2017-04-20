@@ -615,7 +615,7 @@ class PyClustMainWindow(QtGui.QMainWindow):
 
         # data saver and loader object for classifier machine learning
         self.dataset = None
-        self.ui.comboBox_labels.addItems(['Pyramidal', 'Interneuron', 'Junk'])
+        self.ui.comboBox_labels.addItems(['', 'Pyramidal', 'Interneuron', 'Junk'])
 
         # Create the undo stack and actions
         self.undoStack = QtGui.QUndoStack(self)
@@ -2281,10 +2281,15 @@ class PyClustMainWindow(QtGui.QMainWindow):
         self.mp_proj.featureRedrawRequired.emit()
 
 
+    # save labeled cluster to file in csv format
     def action_saveLabeledCluster(self):
         if self.dataset == None:
             self.dataset = dataset.Dataset(self.ui.label_subjectid.text(),
                     self.ui.label_session.text(), self.ui.label_fname.text())  
+        self.dataset.make_path()
+        clust = self.activeClusterRadioButton().cluster_reference
+        self.dataset.cluster_to_file(self.spikeset, clust, 
+                self.ui.comboBox_labels.currentIndex())
 
 
 

@@ -24,36 +24,46 @@ class Dataset:
         # keeps track of which file and cluster has been added
         self.added = set()
 
-
     # returns the directory path for the new data
-    def __get_file_path(self):
+    def get_file_path(self):
         if self.subject == None or self.session == None:
             return None
         return os.path.join(self.root, self.subject, self.session)
 
+    # Creates path for new file if it does not exist
+    def make_path(self):
+        path = self.get_file_path()
+        if not os.path.exists(path):
+            os.makedirs(path)
 
-    # saves labeled cluster members to file
-    # returns success or failure
-    def cluster_to_file(ss, clust, label, fname=None):
-        pathname = self.__get_file_path()
-        if pathname == None:
+    # saves labeled cluster members to file ; returns success or failure
+    def cluster_to_file(self, ss, clust, label, fname=None):
+        pathname = self.get_file_path()
+        if not pathname:
             return False
 
-        labels = {'P': 0, 'I': 1, 'J': 2}
+        if label < 1 or label > 3:
+            return False
+
         cur_path = os.path.dirname(__file__)
         raw_data_path = os.path.join(cur_path, '..', '..', 'data')
         labeled_data_path = os.path.join(cur_path, 'classifier', 'data')
 
-        file = open(fname, 'a')
+        if fname == None:
+            fname = os.path.join(pathname, self.fname + '.csv')
 
         clust_spikes = ss.spikes[clust.member]
         rows = []
         for i in range(clust_spikes.shape[0]):
             for c in range(clust_spikes.shape[2]):
-                row = clust_spikes[i, :, c].tolist().add(label)
+                row = clust_spikes[i, :, c]
+                listrow = row.tolist()
+                listrow.append(float(label))
+                row = np.array(listrow)
                 row = np.roll(row, 1)  # make label show first
-                rows.add(row)
+                rows.append(row)
         rows = np.array(rows)
 
-        np.savetxt(fname, delimiter=',', header='label,waveform')
+        with open(fname, 'a') as f:
+            np.savetxt(f, rows, fmt='%.1e', delimiter=',', header='label,waveform')
         return True
