@@ -2315,7 +2315,7 @@ class PyClustMainWindow(QtGui.QMainWindow):
         if self.dataset == None:
             self.dataset = dataset.Dataset(self.ui.label_subjectid.text(),
                     self.ui.label_session.text(), self.ui.label_fname.text())  
-        #self.dataset.make_path()
+        self.dataset.make_path()
         clust = self.activeClusterRadioButton().cluster_reference
 
         # get cluster number

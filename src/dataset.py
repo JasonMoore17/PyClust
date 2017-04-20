@@ -41,12 +41,10 @@ class Dataset:
         pathname = self.__get_file_path()
         if not pathname:
             return False
-
         if label < 1 or label > 3:
             return False
-
-        if fname == None:
-            fname = os.path.join(pathname, self.fname + '.csv')
+        if not os.path.exists(pathname):
+            os.makedirs(pathname)
 
         clust_spikes = ss.spikes[clust.member]
         rows = []
@@ -60,8 +58,11 @@ class Dataset:
                 rows.append(row)
         rows = np.array(rows)
 
-        with open(fname, 'a') as f:
-            np.savetxt(f, rows, fmt='%.1e', delimiter=',', header='label,waveform')
+        if fname == None:
+            fpathname = os.path.join(pathname, self.fname + '.csv')
+
+        with open(fpathname, 'a') as f:
+            np.savetxt(f, rows, fmt='%g', delimiter=',', header='label,waveform')
 
         self.saved.add((self.subject, self.session, self.fname, clust_num))
         return True
