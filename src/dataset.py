@@ -7,7 +7,7 @@
 import os
 import numpy as np
 
-
+# predict the label to save
 def get_label(cluster, dt_ms):
     # if the original waveform wv has 60 timestamps, the output is
     # a waveform with 120 timestamps
@@ -69,8 +69,11 @@ def get_label(cluster, dt_ms):
     else:
         return 0
 
-
+# classifier data
 class Dataset:
+    P = 1
+    I = 2
+    J = 3
     def __init__(self, subject=None, session=None, fname=None):
         # 'PyClust/data/clf_data'
         self.root = os.path.join(os.path.dirname(__file__), '..', 'data', 
@@ -125,7 +128,38 @@ class Dataset:
             fpathname = os.path.join(pathname, self.fname + '.csv')
 
         with open(fpathname, 'a') as f:
-            np.savetxt(f, rows, fmt='%g', delimiter=',', header='label,waveform')
+            if os.path.exists(fpathname):
+                np.savetxt(f, rows, fmt='%g', delimiter=',')
+            else:
+                np.savetxt(f, rows, fmt='%g', delimiter=',', header='label,waveform')
 
         self.saved.add((self.subject, self.session, self.fname, clust_num))
         return True
+
+# Load all data from PyClust/data/clf_data
+# returns (X, y) where X is n x d matrix of attributes and y is n x 1 vector of labels
+def load_data():
+    root = os.path.join(os.path.dirname(__file__), '..', 'data', 'clf_data')
+    data = None
+    for dirpath, dirnames, filenames in os.walk(root):
+        for fname in filenames:
+            if fname.endswith('.csv'):
+            #if fname in ['TT5.csv', 'TT7.csv', 'TT10.csv', 'TT13.csv', 'TT17.csv']:
+                if data is None:
+                    data = np.loadtxt(os.path.join(dirpath, fname), delimiter=',', skiprows=0)
+                else:
+                    data = np.append(data, np.loadtxt(os.path.join(dirpath, fname), delimiter=','),
+                                     axis=0)
+
+    if data is None:
+        return None
+    else:
+        X = np.delete(data, 0, axis=1)
+        y = data[:,0].astype(int)
+
+    return X, y
+
+if __name__ == '__main__':
+    data = load_data()
+    print(data[0])
+    print(data[1])
