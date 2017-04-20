@@ -6,6 +6,7 @@
 
 import os
 import numpy as np
+from sklearn import decomposition
 
 # predict the label to save
 def get_label(cluster, dt_ms):
@@ -143,8 +144,9 @@ def load_data():
     data = None
     for dirpath, dirnames, filenames in os.walk(root):
         for fname in filenames:
-            if fname.endswith('.csv'):
+            #if fname.endswith('.csv'):
             #if fname in ['TT5.csv', 'TT7.csv', 'TT10.csv', 'TT13.csv', 'TT17.csv']:
+            if fname in ['TT7.csv', 'TT10.csv']:
                 if data is None:
                     data = np.loadtxt(os.path.join(dirpath, fname), delimiter=',', skiprows=0)
                 else:
@@ -160,6 +162,9 @@ def load_data():
     return X, y
 
 if __name__ == '__main__':
-    data = load_data()
-    print(data[0])
-    print(data[1])
+    X, y = load_data()
+    print(X)
+    print(y)
+    PCA = decomposition.PCA(n_components=4)
+    Z = PCA.fit_transform(X)
+    print(Z)
