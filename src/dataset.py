@@ -7,6 +7,58 @@
 import os
 import numpy as np
 
+
+def get_label(cluster, dt_ms):
+    # if the original waveform wv has 60 timestamps, the output is
+    # a waveform with 120 timestamps
+    def double_resolution(wv, dt_ms):
+        wv_inbetween = []
+        for i in range(wv.size - 1):
+            wv_inbetween.append((wv[i] + wv[i + 1]) / 2.)
+        wv_inbetween.append(wv[wv.size - 1])
+        wv_inbetween = np.array(wv_inbetween)
+        wv_new = np.array([[wv], [wv_inbetween]]).transpose().flatten()
+        return (wv_new, dt_ms / 2.)
+
+    # compute full width at half maximum (FWHM)
+    def get_fwhm(wv, dt_ms):
+        argmax = np.argmax(wv)
+
+        # align waveform to 0 for baseline left of amplitude
+        min = np.min(wv[:argmax])
+        voffset = np.vectorize(lambda x: x - min)
+        wv = voffset(wv)
+        max = np.amax(wv)
+
+        vdist = np.vectorize(lambda x: abs(max / 2. - x))
+        argLhm = np.argmin(vdist(wv[:argmax]))
+        argRhm = np.argmin(vdist(wv[argmax:])) + argmax
+        return (argRhm - argLhm) * dt_ms
+
+    # compute time from peak to valley
+    def get_p2vt(wv, dt_ms):
+        peakIndex = np.argmax(wv)
+        valleyIndex = np.argmin(wv[peakIndex:]) + peakIndex
+        return (valleyIndex - peakIndex) * dt_ms
+
+    wv2xres, dt_ms2xres = double_resolution(cluster.wv_mean[:, 0], dt_ms)
+    fwhm = get_fwhm(wv2xres, dt_ms2xres)
+    p2vt = get_p2vt(wv2xres, dt_ms2xres)
+
+    if cluster.stats['csi'] == np.NAN:
+        return 0  # unlabeled
+    elif cluster.stats['csi'] > 10:  # Pyramidal
+        if 1.6 * fwhm + p2vt > 0.95:
+            return 1  # Pyramidal
+        else:
+            return 0  # unlabeled
+    else:
+        if 1.6 * fwhm + p2vt < 0.95:
+            return 2  # Interneuron
+        else:
+            return 0  # unlabeled
+
+
 class Dataset:
     def __init__(self, subject=None, session=None, fname=None):
         # 'PyClust/data/clf_data'

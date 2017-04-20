@@ -70,6 +70,11 @@ class PyClustMainWindow(QtGui.QMainWindow):
         self.ui.stackedWidget.setCurrentIndex(1)
         self.updateWavecutterPlot()
 
+        # predict label to save as training data
+        label_pred = dataset.get_label(self.activeClusterRadioButton().cluster_reference,
+                                       self.spikeset.dt_ms)
+        self.ui.comboBox_labels.setCurrentIndex(label_pred)
+
         # conditionally disable save-labeled-cluster button
         clust_num_h = filter(lambda (i, c): self.activeClusterRadioButton().cluster_reference
                                             is c, enumerate(self.spikeset.clusters))
