@@ -119,8 +119,8 @@ class Dataset:
         rows = []
         for chan in range(wv_mean.shape[1]):
             row = wv_mean[:, chan]
-            plt.plot(range(row.size), row)
-            plt.show()
+            #plt.plot(range(row.size), row)
+            #plt.show()
             listrow = row.tolist()
             listrow.append(float(label))
             row = np.array(listrow)
@@ -169,6 +169,18 @@ if __name__ == '__main__':
     X, y = load_data()
     print(X)
     print(y)
-    PCA = decomposition.PCA(n_components=4)
+    PCA = decomposition.KernelPCA(n_components=10, kernel='rbf')
     Z = PCA.fit_transform(X)
+
+    get_p_indices = np.vectorize(lambda x: x == 1)
+    get_i_indices = np.vectorize(lambda x: x == 2)
+    Zp = Z[get_p_indices(y)]
+    Zi = Z[get_i_indices(y)]
+
+    for i in range(8 - 1):
+        plt.figure()
+        plt.xlabel('Principle Component ' + str(i))
+        plt.ylabel('Principle Component ' + str(i + 1))
+        plt.plot(Zp[:, i], Zp[:, i + 1], 'ro', Zi[:, i], Zi[:, i + 1], 'bo')
+        plt.show()
     print(Z)
