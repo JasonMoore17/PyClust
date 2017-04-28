@@ -2330,7 +2330,7 @@ class PyClustMainWindow(QtGui.QMainWindow):
         else:
             clust_num = None
         label = self.ui.comboBox_labels.currentIndex()
-        self.dataset.cluster_to_file(self.spikeset, clust, clust_num, label)
+        self.dataset.cluster_to_file(clust, clust_num, label)
         self.ui.pushButton_saveLabeledCluster.setEnabled(False)
 
 

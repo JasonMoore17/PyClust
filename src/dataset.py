@@ -7,6 +7,7 @@
 import os
 import numpy as np
 from sklearn import decomposition
+import matplotlib.pyplot as plt
 
 # predict the label to save
 def get_label(cluster, dt_ms):
@@ -104,7 +105,8 @@ class Dataset:
         return (subject, session, fname, clust_num) in self.saved
 
     # saves labeled cluster members to file ; returns success or failure
-    def cluster_to_file(self, ss, clust, clust_num, label, fname=None):
+    def cluster_to_file(self, clust, clust_num, label, fname=None):
+
         pathname = self.__get_file_path()
         if not pathname:
             return False
@@ -113,17 +115,19 @@ class Dataset:
         if not os.path.exists(pathname):
             os.makedirs(pathname)
 
-        clust_spikes = ss.spikes[clust.member]
+        wv_mean = clust.wv_mean
         rows = []
-        for i in range(clust_spikes.shape[0]):
-            for c in range(clust_spikes.shape[2]):
-                row = clust_spikes[i, :, c]
-                listrow = row.tolist()
-                listrow.append(float(label))
-                row = np.array(listrow)
-                row = np.roll(row, 1)  # make label show first
-                rows.append(row)
+        for chan in range(wv_mean.shape[1]):
+            row = wv_mean[:, chan]
+            plt.plot(range(row.size), row)
+            plt.show()
+            listrow = row.tolist()
+            listrow.append(float(label))
+            row = np.array(listrow)
+            row = np.roll(row, 1)  # make label show first
+            rows.append(row)
         rows = np.array(rows)
+
 
         if fname == None:
             fpathname = os.path.join(pathname, self.fname + '.csv')
