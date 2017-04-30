@@ -8,6 +8,9 @@ import os
 import numpy as np
 from sklearn import decomposition
 import matplotlib.pyplot as plt
+from sklearn.svm import SVC
+from sklearn.model_selection import StratifiedKFold
+
 
 # predict the label to save
 def get_label(cluster, dt_ms):
@@ -166,22 +169,57 @@ def load_data():
     return X, y
 
 
+# compute cross-validation error of classifier
+# X, y = data attributes and labels
+# nfolds = number of stratified folds
+# clf = classifier object
+def cv_error(X, y, clf, n_splits=5):
+    # stratified k-folds
+    skf = StratifiedKFold(n_splits=n_splits)
+    total_error = 0.0
+    n_trials = 0
+    for train_indices, test_indices in skf.split(X, y):
+        n_trials += 1
+        X_train, y_train = X[train_indices], y[train_indices]
+        X_test, y_test = X[test_indices], y[test_indices]
+
+        clf.fit(X_train, y_train)
+        y_pred = clf.predict(X_test)
+
+        # count number of mispredictions from current fold
+        n_mispreds = 0.0
+        for i in range(y_test.size):
+            if not y_test[i] == y_pred[i]:
+                # add penalty for misprediction
+                n_mispreds += 1.0
+
+        # add to total error
+        total_error += n_mispreds / float(y_test.size)
+        
+    return total_error / float(n_trials)
+
 if __name__ == '__main__':
     X, y = load_data()
-    print(X)
-    print(y)
-    PCA = decomposition.KernelPCA(n_components=20, kernel='rbf', gamma=10)
-    Z = PCA.fit_transform(X)
+    print('X.shape:', X.shape)
+    print('y.shape:', y.shape)
+    #clf = SVC(kernel='rbf')
+    clf = SVC(kernel='linear')
+    error_rate = cv_error(X, y, clf)
+    print('error_rate: ', error_rate)
 
-    get_p_indices = np.vectorize(lambda x: x == 1)
-    get_i_indices = np.vectorize(lambda x: x == 2)
-    Zp = Z[get_p_indices(y)]
-    Zi = Z[get_i_indices(y)]
+    #n_components = 10
+    #PCA = decomposition.KernelPCA(n_components=n_components, kernel='rbf')
+    #Z = PCA.fit_transform(X)
 
-    for i in np.arange(0, 20 - 1, 2):
-        plt.figure()
-        plt.xlabel('Principle Component ' + str(i))
-        plt.ylabel('Principle Component ' + str(i + 1))
-        plt.plot(Zp[:, i], Zp[:, i + 1], 'ro', Zi[:, i], Zi[:, i + 1], 'bo')
-        plt.show()
-    print(Z)
+    #get_p_indices = np.vectorize(lambda x: x == 1)
+    #get_i_indices = np.vectorize(lambda x: x == 2)
+    #Zp = Z[get_p_indices(y)]
+    #Zi = Z[get_i_indices(y)]
+
+    #for i in np.arange(0, n_components - 1, 2):
+    #    plt.figure()
+    #    plt.xlabel('Principle Component ' + str(i))
+    #    plt.ylabel('Principle Component ' + str(i + 1))
+    #    plt.plot(Zp[:, i], Zp[:, i + 1], 'ro', Zi[:, i], Zi[:, i + 1], 'bo')
+    #    plt.show()
+    #print(Z)
