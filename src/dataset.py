@@ -148,9 +148,9 @@ def load_data():
     data = None
     for dirpath, dirnames, filenames in os.walk(root):
         for fname in filenames:
-            #if fname.endswith('.csv'):
+            if fname.endswith('.csv'):
             #if fname in ['TT5.csv', 'TT7.csv', 'TT10.csv', 'TT13.csv', 'TT17.csv']:
-            if fname in ['TT7.csv', 'TT10.csv']:
+            #if fname in ['TT7.csv', 'TT10.csv']:
                 if data is None:
                     data = np.loadtxt(os.path.join(dirpath, fname), delimiter=',', skiprows=0)
                 else:
@@ -165,11 +165,12 @@ def load_data():
 
     return X, y
 
+
 if __name__ == '__main__':
     X, y = load_data()
     print(X)
     print(y)
-    PCA = decomposition.KernelPCA(n_components=10, kernel='rbf')
+    PCA = decomposition.KernelPCA(n_components=20, kernel='rbf', gamma=10)
     Z = PCA.fit_transform(X)
 
     get_p_indices = np.vectorize(lambda x: x == 1)
@@ -177,7 +178,7 @@ if __name__ == '__main__':
     Zp = Z[get_p_indices(y)]
     Zi = Z[get_i_indices(y)]
 
-    for i in range(8 - 1):
+    for i in np.arange(0, 20 - 1, 2):
         plt.figure()
         plt.xlabel('Principle Component ' + str(i))
         plt.ylabel('Principle Component ' + str(i + 1))
