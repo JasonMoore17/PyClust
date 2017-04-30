@@ -173,7 +173,7 @@ def load_data():
 # X, y = data attributes and labels
 # nfolds = number of stratified folds
 # clf = classifier object
-def cv_error(X, y, clf, n_splits=5):
+def get_cv_error(X, y, clf, n_splits=5):
     # stratified k-folds
     skf = StratifiedKFold(n_splits=n_splits)
     total_error = 0.0
@@ -198,14 +198,58 @@ def cv_error(X, y, clf, n_splits=5):
         
     return total_error / float(n_trials)
 
+
+# Compute optimal SVM hyperparameter C using cross-validation
+# Returns: opt_c = optimal C, min_error = min error for opt_c
+def get_opt_c(X, y):
+    c_range = [10.0 ** i for i in range(-5, 5)]
+
+    try:
+        min_error = float('inf')
+    except:
+        min_error = 1e30000
+
+    for c in c_range:
+        clf = SVC(C=c, kernel='linear')
+        error = get_cv_error(X, y, clf)
+        #print('c: ', c)
+        #print('error: ', error)
+
+        if error < min_error:
+            min_error = error
+            opt_c = c
+
+    return opt_c, min_error
+
+
+# Compute the error of training classifier 'clf' on training data
+# 'X_train', 'y_train'. Test on samples 'X_test', 'y_test'.
+def get_error(X_train, y_train, X_test, y_test, clf):
+    clf.fit(X_train, y_train)
+    y_pred = clf.predict(X_test)
+
+    # count number of mispredictions
+    n_mispreds = 0.0
+    for i in range(y_test.size):
+        n_mispreds += 1.0
+    
+    return n_mispreds / float(y_test.size)
+
+
 if __name__ == '__main__':
     X, y = load_data()
     print('X.shape:', X.shape)
     print('y.shape:', y.shape)
+
+    opt_c, min_error = get_opt_c(X, y)
+    #print('opt_c: ', opt_c)
+    #print('min_error: ', min_error)
+
     #clf = SVC(kernel='rbf')
-    clf = SVC(kernel='linear')
-    error_rate = cv_error(X, y, clf)
-    print('error_rate: ', error_rate)
+    #clf = SVC(kernel='linear')
+    #error_rate = get_cv_error(X, y, clf)
+    #print('error_rate: ', error_rate)
+    #get_opt_c(X, y, clf)
 
     #n_components = 10
     #PCA = decomposition.KernelPCA(n_components=n_components, kernel='rbf')
