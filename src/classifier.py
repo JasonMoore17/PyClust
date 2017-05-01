@@ -189,26 +189,49 @@ class DataSaver:
 
 # Load all data from PyClust/data/clf_data
 # returns (X, y) where X is n x d matrix of attributes and y is n x 1 vector of labels
-def load_data():
+def load_data(csvs=None):
     root = os.path.join(os.path.dirname(__file__), '..', 'data', 'clf_data')
     data = None
-    for dirpath, dirnames, filenames in os.walk(root):
-        for fname in filenames:
-            if fname.endswith('.csv'):
-            #if fname in ['TT5.csv', 'TT7.csv', 'TT10.csv', 'TT13.csv', 'TT17.csv']:
-            #if fname in ['TT7.csv', 'TT10.csv']:
-                if data is None:
-                    data = np.loadtxt(os.path.join(dirpath, fname), delimiter=',', skiprows=0)
-                else:
-                    data = np.append(data, np.loadtxt(os.path.join(dirpath, fname), delimiter=','),
-                                     axis=0)
 
+    if csvs is None:
+        load_all = True
+
+    # look through entire directory tree rooted at 'clf_data'
+    for dirpath, dirnames, filenames in os.walk(root):
+        if load_all:
+            csvs = filter(lambda f: f.endswith('.csv') and not f.endswith('_members.csv'),
+                               filenames)
+        for fname in csvs:
+            if data is None:
+                data = np.loadtxt(os.path.join(dirpath, fname), delimiter=',', skiprows=0)
+            else:
+                data = np.append(data, np.loadtxt(os.path.join(dirpath, fname), delimiter=','),
+                                 axis=0)
     if data is None:
         return None
     else:
         X = np.delete(data, 0, axis=1)
         y = data[:,0].astype(int)
 
+    return X, y
+
+# load _members.csv data
+def load_spikes_data():
+    root = os.path.join(os.path.dirname(__file__), '..', 'data', 'clf_data')
+    data = None
+    for dirpath, dirnames, filenames in os.walk(root):
+        for fname in filenames:
+            if fname.endswith('_members.csv'):
+                if data is None:
+                    data = np.loadtxt(os.path.join(dirpath, fname), delimiter=',', skiprows=0)
+                else:
+                    data = np.append(data, np.loadtxt(os.path.join(dirpath, fname), delimiter=','),
+                                     axis=0)
+    if data is None:
+        return None
+    else:
+        X = np.delete(data, 0, axis=1)
+        y = data[:,0].astype(int)
     return X, y
 
 
@@ -267,24 +290,48 @@ def get_opt_c(X, y):
 
 # Compute the error of training classifier 'clf' on training data
 # 'X_train', 'y_train'. Test on samples 'X_test', 'y_test'.
-def get_error(X_train, y_train, X_test, y_test, clf):
-    clf.fit(X_train, y_train)
+def get_error(X_test, y_test, clf):
     y_pred = clf.predict(X_test)
 
     # count number of mispredictions
     n_mispreds = 0.0
     for i in range(y_test.size):
-        n_mispreds += 1.0
+        if not y_pred[i] == y_test[i]:
+            n_mispreds += 1.0
     
     return n_mispreds / float(y_test.size)
 
 
 if __name__ == '__main__':
-    X, y = load_data()
-    print('X.shape:', X.shape)
-    print('y.shape:', y.shape)
+    X_train, y_train = load_data()
 
-    opt_c, min_error = get_opt_c(X, y)
+    opt_c, min_error = get_opt_c(X_train, y_train)
+
+    clf = SVC(C=opt_c, kernel='linear')
+    clf.fit(X_train, y_train)
+
+    X_test, y_test = load_spikes_data()
+
+    # total error for random sample members
+    error = get_error(X_test, y_test, clf)
+    print('error: ', error)
+
+    # total error for random exclusive P, I sample members
+    get_p_indices = np.vectorize(lambda x: x == 1)
+    get_i_indices = np.vectorize(lambda x: x == 2)
+    i_indices = get_p_indices(y_test)
+    p_indices = get_i_indices(y_test)
+    X_test_p = X_test[p_indices]
+    X_test_i = X_test[i_indices]
+    y_test_p = y_test[p_indices]
+    y_test_i = y_test[i_indices]
+
+    error_p = get_error(X_test_p, y_test_p, clf)
+    error_i = get_error(X_test_i, y_test_i, clf)
+
+    print('p error: ', error_p)
+    print('i error: ', error_i)
+
     #print('opt_c: ', opt_c)
     #print('min_error: ', min_error)
 
