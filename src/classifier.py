@@ -75,7 +75,7 @@ def get_label(cluster, dt_ms):
         return 0
 
 # classifier data
-class Dataset:
+class DataSaver:
     P = 1
     I = 2
     J = 3

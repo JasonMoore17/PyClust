@@ -29,7 +29,7 @@ import multiplotwidget
 import boundaries
 
 # classifier module
-import dataset
+import classifier
 #import features
 
 
@@ -71,7 +71,7 @@ class PyClustMainWindow(QtGui.QMainWindow):
         self.updateWavecutterPlot()
 
         # predict label to save as training data
-        label_pred = dataset.get_label(self.activeClusterRadioButton().cluster_reference,
+        label_pred = classifier.get_label(self.activeClusterRadioButton().cluster_reference,
                                        self.spikeset.dt_ms)
         self.ui.comboBox_labels.setCurrentIndex(label_pred)
 
@@ -79,7 +79,7 @@ class PyClustMainWindow(QtGui.QMainWindow):
         clust_num_h = filter(lambda (i, c): self.activeClusterRadioButton().cluster_reference
                                             is c, enumerate(self.spikeset.clusters))
         clust_num = clust_num_h[0][0] if not clust_num_h == [] else None
-        if self.dataset.is_saved(self.ui.label_subjectid.text(), self.ui.label_session.text(),
+        if self.clf_data_saver.is_saved(self.ui.label_subjectid.text(), self.ui.label_session.text(),
                                  self.ui.label_fname.text(), clust_num):
             self.ui.pushButton_saveLabeledCluster.setEnabled(False)
         else:
@@ -629,7 +629,7 @@ class PyClustMainWindow(QtGui.QMainWindow):
         self.unsaved = False
 
         # data saver and loader object for classifier machine learning
-        self.dataset = None
+        self.clf_data_saver = None
         self.ui.comboBox_labels.addItems(['', 'Pyramidal', 'Interneuron', 'Junk'])
 
         # Create the undo stack and actions
@@ -1583,20 +1583,20 @@ class PyClustMainWindow(QtGui.QMainWindow):
             os.path.splitext(os.path.split(fname)[1])[0])
         self.curfile = fname
 
-        # Load info to keep track of which clusters have been added to Dataset for ML
-        if self.dataset == None:
-            self.dataset = dataset.Dataset(self.ui.label_subjectid.text(),
+        # Load info to keep track of which clusters have been added to DataSaver for ML
+        if self.clf_data_saver == None:
+            self.clf_data_saver = classifier.DataSaver(self.ui.label_subjectid.text(),
                     self.ui.label_session.text(), self.ui.label_fname.text())
         else:
-            self.dataset.subject = self.ui.label_subjectid.text()
-            self.dataset.session = self.ui.label_session.text()
-            self.dataset.fname = self.ui.label_fname.text()
+            self.clf_data_saver.subject = self.ui.label_subjectid.text()
+            self.clf_data_saver.session = self.ui.label_session.text()
+            self.clf_data_saver.fname = self.ui.label_fname.text()
 
         # conditionally disable save-labeled-cluster button
         clust_num_h = filter(lambda (i, c): self.activeClusterRadioButton().cluster_reference
                                             is c, enumerate(self.spikeset.clusters))
         clust_num = clust_num_h[0][0] if not clust_num_h == [] else None
-        if self.dataset.is_saved(self.ui.label_subjectid.text(), self.ui.label_session.text(),
+        if self.clf_data_saver.is_saved(self.ui.label_subjectid.text(), self.ui.label_session.text(),
                                  self.ui.label_fname.text(), clust_num):
             self.ui.pushButton_saveLabeledCluster.setEnabled(False)
         else:
@@ -2317,10 +2317,10 @@ class PyClustMainWindow(QtGui.QMainWindow):
 
     # save labeled cluster to file in csv format
     def action_saveLabeledCluster(self):
-        if self.dataset == None:
-            self.dataset = dataset.Dataset(self.ui.label_subjectid.text(),
+        if self.clf_data_saver == None:
+            self.clf_data_saver = classifier.DataSaver(self.ui.label_subjectid.text(),
                     self.ui.label_session.text(), self.ui.label_fname.text())  
-        self.dataset.make_path()
+        self.clf_data_saver.make_path()
         clust = self.activeClusterRadioButton().cluster_reference
 
         # get cluster number
@@ -2330,7 +2330,7 @@ class PyClustMainWindow(QtGui.QMainWindow):
         else:
             clust_num = None
         label = self.ui.comboBox_labels.currentIndex()
-        self.dataset.cluster_to_file(clust, clust_num, label)
+        self.clf_data_saver.cluster_to_file(clust, clust_num, label)
         self.ui.pushButton_saveLabeledCluster.setEnabled(False)
 
 
