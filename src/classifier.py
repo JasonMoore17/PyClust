@@ -11,6 +11,9 @@ import matplotlib.pyplot as plt
 from sklearn.svm import SVC
 from sklearn.model_selection import StratifiedKFold
 
+PEAK_INDEX = 17
+CLASS_P = 1
+CLASS_I = 2
 
 # predict the label to save
 def get_label(cluster, dt_ms):
@@ -302,35 +305,66 @@ def get_error(X_test, y_test, clf):
     return n_mispreds / float(y_test.size)
 
 
+def normalize(X):
+    peaks = X[:, PEAK_INDEX]
+    factor = np.amax(peaks)
+    normalize_row = np.vectorize(lambda x: x / factor)
+    normalize_all_rows = np.vectorize(normalize_row)
+    return normalize_all_rows(X)
+    
+
 if __name__ == '__main__':
+
+    print('training from all; test from all')
+
     X_train, y_train = load_data()
+    X_train_n = normalize(X_train)
 
-    opt_c, min_error = get_opt_c(X_train, y_train)
+    for i in range(5):
+        plt.figure()
+        plt.title('raw')
+        plt.plot(range(X_train.shape[1]), X_train[i])
+        plt.figure()
+        plt.title('normalized')
+        plt.plot(range(X_train_n.shape[1]), X_train_n[i])
+        plt.show()
 
-    clf = SVC(C=opt_c, kernel='linear')
-    clf.fit(X_train, y_train)
 
-    X_test, y_test = load_spikes_data()
+    ########################################################################
+    # SVC fitting
+    ########################################################################
 
-    # total error for random sample members
-    error = get_error(X_test, y_test, clf)
-    print('error: ', error)
+    #opt_c, min_error = get_opt_c(X_train, y_train)
 
-    # total error for random exclusive P, I sample members
-    get_p_indices = np.vectorize(lambda x: x == 1)
-    get_i_indices = np.vectorize(lambda x: x == 2)
-    i_indices = get_p_indices(y_test)
-    p_indices = get_i_indices(y_test)
-    X_test_p = X_test[p_indices]
-    X_test_i = X_test[i_indices]
-    y_test_p = y_test[p_indices]
-    y_test_i = y_test[i_indices]
+    #clf = SVC(C=opt_c, kernel='linear')
+    #clf.fit(X_train, y_train)
 
-    error_p = get_error(X_test_p, y_test_p, clf)
-    error_i = get_error(X_test_i, y_test_i, clf)
+    #X_test, y_test = load_spikes_data()
 
-    print('p error: ', error_p)
-    print('i error: ', error_i)
+    ## total error for random sample members
+    #error = get_error(X_test, y_test, clf)
+    #print('error: ', error)
+
+    ## total error for random exclusive P, I sample members
+    #get_p_indices = np.vectorize(lambda x: x == 1)
+    #get_i_indices = np.vectorize(lambda x: x == 2)
+    #i_indices = get_p_indices(y_test)
+    #p_indices = get_i_indices(y_test)
+    #X_test_p = X_test[p_indices]
+    #X_test_i = X_test[i_indices]
+    #y_test_p = y_test[p_indices]
+    #y_test_i = y_test[i_indices]
+
+    #error_p = get_error(X_test_p, y_test_p, clf)
+    #error_i = get_error(X_test_i, y_test_i, clf)
+
+    #print('p error: ', error_p)
+    #print('i error: ', error_i)
+    
+
+    ########################################################################
+    # PCA stuff
+    ########################################################################
 
     #print('opt_c: ', opt_c)
     #print('min_error: ', min_error)
