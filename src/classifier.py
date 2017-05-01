@@ -90,7 +90,8 @@ class DataSaver:
         self.fname = fname
 
         # keeps track of which file and cluster has been added
-        self.saved = set()
+        self.saved_mean = set()
+        self.saved_members = set()
 
     # returns the directory path for the new data
     def __get_file_path(self):
@@ -99,15 +100,21 @@ class DataSaver:
         return os.path.join(self.root, self.subject, self.session)
 
     # Creates path for new file if it does not exist
-    def make_path(self):
+    def __make_path(self):
         path = self.__get_file_path()
         if not os.path.exists(path):
             os.makedirs(path)
 
-    def is_saved(self, subject, session, fname, clust_num):
-        return (subject, session, fname, clust_num) in self.saved
+    def is_saved(self, subject, session, fname, clust_num, mode='mean'):
+        if mode is 'mean':
+            return (subject, session, fname, clust_num) in self.saved_mean
+        elif mode is 'members':
+            return (subject, session, fname, clust_num) in self.saved_members
+        else:
+            return False
 
-    # saves labeled cluster members to file ; returns success or failure
+    # Saves labeled mean cluster waveforms of each channel to file.
+    # Returns success or failure.
     def cluster_to_file(self, clust, clust_num, label, fname=None):
 
         pathname = self.__get_file_path()
@@ -115,8 +122,8 @@ class DataSaver:
             return False
         if label < 1 or label > 3:
             return False
-        if not os.path.exists(pathname):
-            os.makedirs(pathname)
+
+        self.__make_path()
 
         wv_mean = clust.wv_mean
         rows = []
@@ -141,8 +148,44 @@ class DataSaver:
             else:
                 np.savetxt(f, rows, fmt='%g', delimiter=',', header='label,waveform')
 
-        self.saved.add((self.subject, self.session, self.fname, clust_num))
+        self.saved_mean.add((self.subject, self.session, self.fname, clust_num))
         return True
+
+
+    # saves labeled cluster members to file
+    def members_to_file(self, ss, clust, clust_num, label, fname=None):
+        pathname = self.__get_file_path()
+        if not pathname:
+            return False
+        if label < 1 or label > 3:
+            return False
+        
+        self.__make_path()
+
+        clust_spikes = ss.spikes[clust.member]
+        rows = []
+        for i in range(clust_spikes.shape[0]):
+            for c in range(clust_spikes.shape[2]):
+                row = clust_spikes[i, :, c]
+                listrow = row.tolist()
+                listrow.append(float(label))
+                row = np.array(listrow)
+                row = np.roll(row, 1)  # make label show first
+                rows.append(row)
+        rows = np.array(rows)
+
+        if fname == None:
+            fpathname = os.path.join(pathname, self.fname + '_members.csv')
+
+        with open(fpathname, 'a') as f:
+            if os.path.exists(fpathname):
+                np.savetxt(f, rows, fmt='%g', delimiter=',')
+            else:
+                np.savetxt(f, rows, fmt='%g', delimiter=',', header='label,waveform')
+
+        self.saved_members.add((self.subject, self.session, self.fname, clust_num))
+        return True
+
 
 # Load all data from PyClust/data/clf_data
 # returns (X, y) where X is n x d matrix of attributes and y is n x 1 vector of labels

@@ -79,11 +79,20 @@ class PyClustMainWindow(QtGui.QMainWindow):
         clust_num_h = filter(lambda (i, c): self.activeClusterRadioButton().cluster_reference
                                             is c, enumerate(self.spikeset.clusters))
         clust_num = clust_num_h[0][0] if not clust_num_h == [] else None
+        # save mean
         if self.clf_data_saver.is_saved(self.ui.label_subjectid.text(), self.ui.label_session.text(),
                                  self.ui.label_fname.text(), clust_num):
             self.ui.pushButton_saveLabeledCluster.setEnabled(False)
         else:
             self.ui.pushButton_saveLabeledCluster.setEnabled(True)
+
+        # save members
+        if self.clf_data_saver.is_saved(self.ui.label_subjectid.text(), self.ui.label_session.text(),
+                                 self.ui.label_fname.text(), clust_num, mode='members'):
+            self.ui.pushButton_saveLabeledMembers.setEnabled(False)
+        else:
+            self.ui.pushButton_saveLabeledMembers.setEnabled(True)
+
 
     def switch_to_maindisplay(self):
         self.ui.stackedWidget.setCurrentIndex(0)
@@ -734,6 +743,8 @@ class PyClustMainWindow(QtGui.QMainWindow):
         # training data for classifier
         self.ui.pushButton_saveLabeledCluster.clicked.connect(
                 self.action_saveLabeledCluster)
+        self.ui.pushButton_saveLabeledMembers.clicked.connect(
+                self.action_saveLabeledMembers)
 
         self.ui.label_subjectid.setText('')
         self.ui.label_session.setText('')
@@ -1596,11 +1607,20 @@ class PyClustMainWindow(QtGui.QMainWindow):
         clust_num_h = filter(lambda (i, c): self.activeClusterRadioButton().cluster_reference
                                             is c, enumerate(self.spikeset.clusters))
         clust_num = clust_num_h[0][0] if not clust_num_h == [] else None
+    
+        # mean button
         if self.clf_data_saver.is_saved(self.ui.label_subjectid.text(), self.ui.label_session.text(),
                                  self.ui.label_fname.text(), clust_num):
             self.ui.pushButton_saveLabeledCluster.setEnabled(False)
         else:
             self.ui.pushButton_saveLabeledCluster.setEnabled(True)
+
+        # members button
+        if self.clf_data_saver.is_saved(self.ui.label_subjectid.text(), self.ui.label_session.text(),
+                                 self.ui.label_fname.text(), clust_num, mode='members'):
+            self.ui.pushButton_saveLabeledMembers.setEnabled(False)
+        else:
+            self.ui.pushButton_saveLabeledMembers.setEnabled(True)
 
         self.undoStack.clear()
 
@@ -2320,7 +2340,6 @@ class PyClustMainWindow(QtGui.QMainWindow):
         if self.clf_data_saver == None:
             self.clf_data_saver = classifier.DataSaver(self.ui.label_subjectid.text(),
                     self.ui.label_session.text(), self.ui.label_fname.text())  
-        self.clf_data_saver.make_path()
         clust = self.activeClusterRadioButton().cluster_reference
 
         # get cluster number
@@ -2332,6 +2351,25 @@ class PyClustMainWindow(QtGui.QMainWindow):
         label = self.ui.comboBox_labels.currentIndex()
         self.clf_data_saver.cluster_to_file(clust, clust_num, label)
         self.ui.pushButton_saveLabeledCluster.setEnabled(False)
+
+
+    # save labeled cluster members to file in csv format
+    def action_saveLabeledMembers(self):
+        if self.clf_data_saver == None:
+            self.clf_data_saver = classifier.DataSaver(self.ui.label_subjectid.text(),
+                    self.ui.label_session.text(), self.ui.label_fname.text())  
+        clust = self.activeClusterRadioButton().cluster_reference
+
+        # get cluster number
+        index_helper = filter(lambda (i, c): clust is c, enumerate(self.spikeset.clusters))
+        if not index_helper == []:
+            clust_num = index_helper[0][0]
+        else:
+            clust_num = None
+        label = self.ui.comboBox_labels.currentIndex()
+        self.clf_data_saver.members_to_file(self.spikeset, clust, clust_num, label)
+        self.ui.pushButton_saveLabeledMembers.setEnabled(False)
+
 
 
     def keyPressEvent(self, e): 
