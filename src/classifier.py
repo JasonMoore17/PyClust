@@ -133,8 +133,6 @@ class DataSaver:
         rows = []
         for chan in range(wv_mean.shape[1]):
             row = wv_mean[:, chan]
-            #plt.plot(range(row.size), row)
-            #plt.show()
             listrow = row.tolist()
             listrow.append(float(label))
             row = np.array(listrow)
@@ -193,27 +191,24 @@ class DataSaver:
 
 # Load all clustr mean data from PyClust/data/clf_data
 # returns (X, y) where X is n x d matrix of attributes and y is n x 1 vector of labels
-def load_data(target_path=None):
-    root = os.path.join(os.path.dirname(__file__), '..', 'data', 'clf_data')
+def load_data(target_path='', target_file=''):
     data = None
 
-    if target_path is None:
-        load_all_dirs = True
+    # look through entire directory tree rooted at 'clf_data/<target_path>'
+    for dirpath, dirnames, filenames in os.walk(os.path.join(ROOT, target_path)):
+        if target_file == '':
+            csvs = filter(lambda f: f.endswith('.csv'), filenames)
+            for fname in csvs:
+                if data is None:
+                    data = np.loadtxt(os.path.join(dirpath, fname), delimiter=',', skiprows=0)
+                else:
+                    data = np.append(data, np.loadtxt(os.path.join(dirpath, fname), delimiter=','),
+                                     axis=0)
 
-    # look through entire directory tree rooted at 'clf_data'
-    for dirpath, dirnames, filenames in os.walk(root):
-        if (load_all_dirs or dirpath == target_path):
-            csvs = filter(lambda f: f.endswith('.csv') and not f.endswith('_members.csv'),
-                               filenames)
         else:
-            continue
-
-        for fname in csvs:
-            if data is None:
+            for fname in filter(lambda f: f == target_file, filenames):
                 data = np.loadtxt(os.path.join(dirpath, fname), delimiter=',', skiprows=0)
-            else:
-                data = np.append(data, np.loadtxt(os.path.join(dirpath, fname), delimiter=','),
-                                 axis=0)
+
     if data is None:
         return None
     else:
@@ -221,6 +216,7 @@ def load_data(target_path=None):
         y = data[:,0].astype(int)
 
     return X, y
+
 
 # load _members.csv data
 def load_spikes_data():
@@ -336,48 +332,39 @@ def normalize(X, mode='total'):
 
 
 def save_to_file(X, y, fname, fprefix=''):
-    fpath = os.path.join(ROOT, fprefix, fname)
-    with open(fpath, 'w') as f:
+    rows = np.array(map(lambda X_row, y_label: np.roll(np.append(X_row, y_label), 1), X, y))
+
+    fpath = os.path.join(ROOT, fprefix)
+    if not os.path.exists(fpath):
+        os.makedirs(fpath)
+
+    with open(os.path.join(fpath, fname), 'w') as f:
         np.savetxt(f, rows, fmt='%g', delimiter=',', header='label,waveform')
-
-    for dirpath, dirnames, fnames in os.walk(root):
-        # csvs of cluster means
-        csvs = filter(lambda f: f.endswith('.csv') and not f.endswith('_members.csv'),
-                               filenames)
-        for fname in csvs:
-            if data is None:
-                data = np.loadtxt(os.path.join(dirpath, fname), delimiter=',', skiprows=0)
-            else:
-                data = np.append(data, np.loadtxt(os.path.join(dirpath, fname), delimiter=','),
-                                 axis=0)
-    if data is None:
-        return None
-    else:
-        X = np.delete(data, 0, axis=1)
-        y = data[:,0].astype(int)
-
+    return True
 
 
 if __name__ == '__main__':
 
     print('training from all; test from all')
 
-    X_train, y_train = load_data()
+    X_train, y_train = load_data('means')
+    print X_train
+
+    X_train_n1 = load_data('normalized')
+    X_train_n2 = load_data('normalized')
+
 
     ########################################################################
-    # Normalizing
-    ########################################################################
-    #X_train_n1 = normalize(X_train, mode='total')
-    X_train_n2 = normalize(X_train, mode='each')
 
-    for i in range(5):
-        plt.figure()
-        plt.title('raw')
-        plt.plot(range(X_train.shape[1]), X_train[i])
-        plt.figure()
-        plt.title('normalized')
-        plt.plot(range(X_train_n2.shape[1]), X_train_n2[i])
-        plt.show()
+
+    #for i in range(5):
+    #    plt.figure()
+    #    plt.title('raw')
+    #    plt.plot(range(X_train.shape[1]), X_train[i])
+    #    plt.figure()
+    #    plt.title('normalized')
+    #    plt.plot(range(X_train_n2.shape[1]), X_train_n2[i])
+    #    plt.show()
 
 
     ########################################################################
