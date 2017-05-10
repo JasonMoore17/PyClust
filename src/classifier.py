@@ -14,6 +14,7 @@ from sklearn.model_selection import StratifiedKFold
 PEAK_INDEX = 17
 CLASS_P = 1
 CLASS_I = 2
+ROOT = os.path.join(os.path.dirname(__file__), '..', 'data', 'clf_data')
 
 # predict the label to save
 def get_label(cluster, dt_ms):
@@ -190,20 +191,23 @@ class DataSaver:
         return True
 
 
-# Load all data from PyClust/data/clf_data
+# Load all clustr mean data from PyClust/data/clf_data
 # returns (X, y) where X is n x d matrix of attributes and y is n x 1 vector of labels
-def load_data(csvs=None):
+def load_data(target_path=None):
     root = os.path.join(os.path.dirname(__file__), '..', 'data', 'clf_data')
     data = None
 
-    if csvs is None:
-        load_all = True
+    if target_path is None:
+        load_all_dirs = True
 
     # look through entire directory tree rooted at 'clf_data'
     for dirpath, dirnames, filenames in os.walk(root):
-        if load_all:
+        if (load_all_dirs or dirpath == target_path):
             csvs = filter(lambda f: f.endswith('.csv') and not f.endswith('_members.csv'),
                                filenames)
+        else:
+            continue
+
         for fname in csvs:
             if data is None:
                 data = np.loadtxt(os.path.join(dirpath, fname), delimiter=',', skiprows=0)
@@ -235,6 +239,18 @@ def load_spikes_data():
     else:
         X = np.delete(data, 0, axis=1)
         y = data[:,0].astype(int)
+    return X, y
+
+
+def load_from_file(pathname, fname):
+    target = os.path.join(ROOT, pathname, fname)
+    if os.path.exists(target):
+        data = np.loadtxt(target, delimiter=',', skiprows=0)
+    if data is None:
+        return None
+    else:
+        X = np.delete(dtaa, 0, axis=1)
+        y = data[:, 0].astype(int)
     return X, y
 
 
@@ -305,20 +321,54 @@ def get_error(X_test, y_test, clf):
     return n_mispreds / float(y_test.size)
 
 
-def normalize(X):
-    peaks = X[:, PEAK_INDEX]
-    factor = np.amax(peaks)
-    normalize_row = np.vectorize(lambda x: x / factor)
-    normalize_all_rows = np.vectorize(normalize_row)
-    return normalize_all_rows(X)
-    
+def normalize(X, mode='total'):
+    if mode == 'total':
+        # each spike adjusts by the max peak of all spikes
+        max_peak = np.amax(map(lambda row: np.amax(row), X))
+        return np.array(map(lambda row: map(lambda x: x / max_peak, row), X))
+    elif mode == 'each':
+        # each spike adjusts by the max peak of that spike; i.e. each amplitude
+        # is scaled to 1
+        return np.array(map(lambda row: map(lambda x: x / np.amax(row), row), X))
+
+    else:
+        raise ValueError('invalid argument for parameter "mode"')
+
+
+def save_to_file(X, y, fname, fprefix=''):
+    fpath = os.path.join(ROOT, fprefix, fname)
+    with open(fpath, 'w') as f:
+        np.savetxt(f, rows, fmt='%g', delimiter=',', header='label,waveform')
+
+    for dirpath, dirnames, fnames in os.walk(root):
+        # csvs of cluster means
+        csvs = filter(lambda f: f.endswith('.csv') and not f.endswith('_members.csv'),
+                               filenames)
+        for fname in csvs:
+            if data is None:
+                data = np.loadtxt(os.path.join(dirpath, fname), delimiter=',', skiprows=0)
+            else:
+                data = np.append(data, np.loadtxt(os.path.join(dirpath, fname), delimiter=','),
+                                 axis=0)
+    if data is None:
+        return None
+    else:
+        X = np.delete(data, 0, axis=1)
+        y = data[:,0].astype(int)
+
+
 
 if __name__ == '__main__':
 
     print('training from all; test from all')
 
     X_train, y_train = load_data()
-    X_train_n = normalize(X_train)
+
+    ########################################################################
+    # Normalizing
+    ########################################################################
+    #X_train_n1 = normalize(X_train, mode='total')
+    X_train_n2 = normalize(X_train, mode='each')
 
     for i in range(5):
         plt.figure()
@@ -326,7 +376,7 @@ if __name__ == '__main__':
         plt.plot(range(X_train.shape[1]), X_train[i])
         plt.figure()
         plt.title('normalized')
-        plt.plot(range(X_train_n.shape[1]), X_train_n[i])
+        plt.plot(range(X_train_n2.shape[1]), X_train_n2[i])
         plt.show()
 
 
@@ -334,15 +384,18 @@ if __name__ == '__main__':
     # SVC fitting
     ########################################################################
 
-    #opt_c, min_error = get_opt_c(X_train, y_train)
+    #opt_c, min_error = get_opt_c(X_train_n, y_train)
 
     #clf = SVC(C=opt_c, kernel='linear')
-    #clf.fit(X_train, y_train)
+    #clf.fit(X_train_n, y_train)
 
     #X_test, y_test = load_spikes_data()
+    #X_test = X_test[:100, :]
+    #y_test = y_test[:100]
+    #X_test_n = normalize(X_test)
 
     ## total error for random sample members
-    #error = get_error(X_test, y_test, clf)
+    #error = get_error(X_test_n, y_test, clf)
     #print('error: ', error)
 
     ## total error for random exclusive P, I sample members
@@ -350,8 +403,8 @@ if __name__ == '__main__':
     #get_i_indices = np.vectorize(lambda x: x == 2)
     #i_indices = get_p_indices(y_test)
     #p_indices = get_i_indices(y_test)
-    #X_test_p = X_test[p_indices]
-    #X_test_i = X_test[i_indices]
+    #X_test_p = X_test_n[p_indices]
+    #X_test_i = X_test_n[i_indices]
     #y_test_p = y_test[p_indices]
     #y_test_i = y_test[i_indices]
 
