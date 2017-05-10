@@ -317,15 +317,24 @@ def get_error(X_test, y_test, clf):
     return n_mispreds / float(y_test.size)
 
 
-def normalize(X, mode='total'):
+def normalize(X, mode='total', max_peak=None):
     if mode == 'total':
         # each spike adjusts by the max peak of all spikes
-        max_peak = np.amax(map(lambda row: np.amax(row), X))
-        return np.array(map(lambda row: map(lambda x: x / max_peak, row), X))
+        if max_peak is None:
+            max_peak = np.amax(map(lambda row: np.amax(row), X))
+        return np.array(map(lambda row: map(lambda x: x / max_peak, row), X)), max_peak
+
     elif mode == 'each':
         # each spike adjusts by the max peak of that spike; i.e. each amplitude
         # is scaled to 1
-        return np.array(map(lambda row: map(lambda x: x / np.amax(row), row), X))
+        def div_row_by(row, factor):
+            if factor == 0.:
+                return row
+            else:
+                return map(lambda x: x / factor, row)
+
+        #return np.array(map(lambda row: map(lambda x: x / np.amax(row), row), X))
+        return np.array(map(lambda row: div_row_by(row, np.amax(row)), X))
 
     else:
         raise ValueError('invalid argument for parameter "mode"')
@@ -345,25 +354,24 @@ def save_to_file(X, y, fname, fprefix=''):
 
 if __name__ == '__main__':
 
-    print('training from all; test from all')
+    #X_train, y_train = load_data('means')
+    #X_test, y_test = load_data('members')
 
-    X_train, y_train = load_data('means')
-    print X_train
+    #X_train_n1, = load_data('normalized')
+    X_train_n, y_train = load_data('normalized/means', 'normalized_means_by_each.csv')
+    print('loading members data')
+    X_test_n, y_test = load_data('normalized/members')
+    #X_test_n1, _ = normalize(X_test, mode='total', max_peak=max_peak)
 
-    X_train_n1 = load_data('normalized')
-    X_train_n2 = load_data('normalized')
-
-
-    ########################################################################
-
-
-    #for i in range(5):
+    #for i in range(3):
     #    plt.figure()
     #    plt.title('raw')
-    #    plt.plot(range(X_train.shape[1]), X_train[i])
+    #    #plt.plot(range(X_train.shape[1]), X_train[i])
+    #    plt.plot(range(X_test.shape[1]), X_test[i])
     #    plt.figure()
     #    plt.title('normalized')
-    #    plt.plot(range(X_train_n2.shape[1]), X_train_n2[i])
+    #    #plt.plot(range(X_train_n2.shape[1]), X_train_n2[i])
+    #    plt.plot(range(X_test_n2.shape[1]), X_test_n2[i])
     #    plt.show()
 
 
@@ -371,19 +379,15 @@ if __name__ == '__main__':
     # SVC fitting
     ########################################################################
 
-    #opt_c, min_error = get_opt_c(X_train_n, y_train)
+    print('optimizing classifier fit')
+    opt_c, min_error = get_opt_c(X_train_n, y_train)
+    print('min CV error with training data: ', min_error)
+    clf = SVC(C=opt_c, kernel='linear')
+    clf.fit(X_train_n, y_train)
 
-    #clf = SVC(C=opt_c, kernel='linear')
-    #clf.fit(X_train_n, y_train)
-
-    #X_test, y_test = load_spikes_data()
-    #X_test = X_test[:100, :]
-    #y_test = y_test[:100]
-    #X_test_n = normalize(X_test)
-
-    ## total error for random sample members
-    #error = get_error(X_test_n, y_test, clf)
-    #print('error: ', error)
+    # total error for random sample members
+    error = get_error(X_test_n, y_test, clf)
+    print('error with normalized: ', error)
 
     ## total error for random exclusive P, I sample members
     #get_p_indices = np.vectorize(lambda x: x == 1)
