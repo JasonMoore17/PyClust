@@ -354,56 +354,63 @@ def save_to_file(X, y, fname, fprefix=''):
 
 if __name__ == '__main__':
 
-    #X_train, y_train = load_data('means')
-    #X_test, y_test = load_data('members')
+    # switch to show plots
+    verbose = False
 
-    #X_train_n1, = load_data('normalized')
-    X_train_n, y_train = load_data('normalized/means', 'normalized_means_by_each.csv')
-    print('loading members data')
-    X_test_n, y_test = load_data('normalized/members')
-    #X_test_n1, _ = normalize(X_test, mode='total', max_peak=max_peak)
+    for mode in ['raw', 'normalized-by-max', 'normalized-by-each']:
+        # load, fit, and predict
+        print'mode: ' + mode
+        print('loading data')
+        if mode == 'raw':
+            X_train, y_train = load_data('raw/means')
+            X_test, y_test = load_data('raw/members')
+        elif mode == 'normalized-by-max':
+            X_train, y_train = load_data('normalized/means', 'normalized_means_by_total.csv')
+            X_test, y_test = load_data('normalized/members', 'normalized_members_by_total.csv')
+        elif mode == 'normalized-by-each':
+            X_train, y_train = load_data('normalized/means', 'normalized_means_by_each.csv')
+            X_test, y_test = load_data('normalized/members', 'normalized_members_by_each.csv')
+        else:
+            raise ValueError
 
-    #for i in range(3):
-    #    plt.figure()
-    #    plt.title('raw')
-    #    #plt.plot(range(X_train.shape[1]), X_train[i])
-    #    plt.plot(range(X_test.shape[1]), X_test[i])
-    #    plt.figure()
-    #    plt.title('normalized')
-    #    #plt.plot(range(X_train_n2.shape[1]), X_train_n2[i])
-    #    plt.plot(range(X_test_n2.shape[1]), X_test_n2[i])
-    #    plt.show()
+        if verbose:
+            for i in range(3):
+                plt.figure()
+                plt.title('raw')
+                #plt.plot(range(X_train.shape[1]), X_train[i])
+                plt.plot(range(X_test.shape[1]), X_test[i])
+                plt.show()
 
 
-    ########################################################################
-    # SVC fitting
-    ########################################################################
+        ########################################################################
+        # SVC fitting
+        ########################################################################
 
-    print('optimizing classifier fit')
-    opt_c, min_error = get_opt_c(X_train_n, y_train)
-    print('min CV error with training data: ', min_error)
-    clf = SVC(C=opt_c, kernel='linear')
-    clf.fit(X_train_n, y_train)
+        print('optimizing classifier fit')
+        opt_c, min_error = get_opt_c(X_train, y_train)
+        print('min CV error with training data: ', min_error)
+        clf = SVC(C=opt_c, kernel='linear')
+        clf.fit(X_train, y_train)
 
-    # total error for random sample members
-    error = get_error(X_test_n, y_test, clf)
-    print('error with normalized: ', error)
+        # total error for random sample members
+        error = get_error(X_test, y_test, clf)
+        print('error with normalized (total): ', error)
 
-    ## total error for random exclusive P, I sample members
-    #get_p_indices = np.vectorize(lambda x: x == 1)
-    #get_i_indices = np.vectorize(lambda x: x == 2)
-    #i_indices = get_p_indices(y_test)
-    #p_indices = get_i_indices(y_test)
-    #X_test_p = X_test_n[p_indices]
-    #X_test_i = X_test_n[i_indices]
-    #y_test_p = y_test[p_indices]
-    #y_test_i = y_test[i_indices]
+        # total error for random exclusive P, I sample members
+        get_p_indices = np.vectorize(lambda x: x == 1)
+        get_i_indices = np.vectorize(lambda x: x == 2)
+        i_indices = get_p_indices(y_test)
+        p_indices = get_i_indices(y_test)
+        X_test_p = X_test[p_indices]
+        X_test_i = X_test[i_indices]
+        y_test_p = y_test[p_indices]
+        y_test_i = y_test[i_indices]
 
-    #error_p = get_error(X_test_p, y_test_p, clf)
-    #error_i = get_error(X_test_i, y_test_i, clf)
+        error_p = get_error(X_test_p, y_test_p, clf)
+        error_i = get_error(X_test_i, y_test_i, clf)
 
-    #print('p error: ', error_p)
-    #print('i error: ', error_i)
+        print('p error: ', error_p)
+        print('i error: ', error_i)
     
 
     ########################################################################
