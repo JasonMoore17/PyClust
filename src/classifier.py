@@ -16,6 +16,66 @@ CLASS_P = 1
 CLASS_I = 2
 ROOT = os.path.join(os.path.dirname(__file__), '..', 'data', 'clf_data')
 
+############################################################################
+# compute features
+############################################################################
+
+# if the original waveform wv has 60 timestamps, the output is
+# a waveform with 120 timestamps
+def double_resolution(wv, dt_ms):
+    wv_inbetween = []
+    for i in range(wv.size - 1):
+        wv_inbetween.append((wv[i] + wv[i + 1]) / 2.)
+    wv_inbetween.append((wv_inbetween[wv_inbetween.size - 1] 
+            - wv_inbetween[wv_inbetween.size - 2]) 
+            + wv_inbetween[wv_inbetween.size - 1])
+    wv_inbetween = np.array(wv_inbetween)
+    wv_new = np.array([[wv], [wv_inbetween]]).transpose().flatten()
+    return wv_new, dt_ms / 2.
+
+
+# compute full width at half maximum (FWHM)
+def get_fwhm(wv, dt_ms):
+    argmax = np.argmax(wv)
+    hm = wv[argmax] / 2.  # half max
+
+    def get_fwhm_arg(side):
+        if side == 'left':
+            indices = np.arange(argmax - 1, -1, -1)
+        elif side == 'right':
+            indices = np.arange(argmax, len(wv), 1)
+        else:
+            raise ValueError
+
+        for i in np.arange(argmax - 1, -1, -1):
+            if i < len(wv) - 1:
+                u_bound = abs(wv[i + 1] - wv[i])
+            else:
+                u_bound = None
+            if i > 0:
+                l_bound = abs(wv[i] - wv[i - 1])
+            else:
+                l_bound = None
+            if u_bound is not None and l_bound is not None:
+                if wv[i] - l_bound <= hm <= wv[i] + u_bound:
+                    return i
+            elif u_bound is None:
+                if hm > wv[i] - l_bound:
+                    return i
+            else: # l_bound is None
+                if hm < wv[i] + u_bound:
+                    return i
+
+        # error if we get here:
+        raise ValueError('fwhm_arg')
+
+    arg_lhm = get_fwhm_arg('left')
+    arg_lhm = get_fwhm_arg('right')
+    return (argRhm - argLhm) * dt_ms
+
+
+############################################################################
+
 # predict the label to save
 def get_label(cluster, dt_ms):
     # if the original waveform wv has 60 timestamps, the output is
@@ -24,7 +84,9 @@ def get_label(cluster, dt_ms):
         wv_inbetween = []
         for i in range(wv.size - 1):
             wv_inbetween.append((wv[i] + wv[i + 1]) / 2.)
-        wv_inbetween.append(wv[wv.size - 1])
+        wv_inbetween.append((wv_inbetween[wv_inbetween.size - 1] 
+                - wv_inbetween[wv_inbetween.size - 2]) 
+                + wv_inbetween[wv_inbetween.size - 1])
         wv_inbetween = np.array(wv_inbetween)
         wv_new = np.array([[wv], [wv_inbetween]]).transpose().flatten()
         return (wv_new, dt_ms / 2.)
@@ -282,7 +344,7 @@ def get_cv_error(X, y, clf, n_splits=5):
 
 # Compute optimal SVM hyperparameter C using cross-validation
 # Returns: opt_c = optimal C, min_error = min error for opt_c
-def get_opt_c(X, y):
+def get_opt_c(X, y, kernel='linear'):
     c_range = [10.0 ** i for i in range(-5, 5)]
 
     try:
@@ -291,7 +353,7 @@ def get_opt_c(X, y):
         min_error = 1e30000
 
     for c in c_range:
-        clf = SVC(C=c, kernel='linear')
+        clf = SVC(C=c, kernel=kernel)
         error = get_cv_error(X, y, clf)
         #print('c: ', c)
         #print('error: ', error)
@@ -357,6 +419,8 @@ if __name__ == '__main__':
     # switch to show plots
     verbose = False
 
+    print_count = True
+
     for mode in ['raw', 'normalized-by-max', 'normalized-by-each']:
         # load, fit, and predict
         print'mode: ' + mode
@@ -373,6 +437,14 @@ if __name__ == '__main__':
         else:
             raise ValueError
 
+        print('X_test.shape: ' + str(X_test.shape))
+        print('y_test.shape: ' + str(y_test.shape))
+        X_test = X_test[500:2500]
+        y_test = y_test[500:2500]
+
+        print('X_test.shape: ' + str(X_test.shape))
+        print('y_test.shape: ' + str(y_test.shape))
+
         if verbose:
             for i in range(3):
                 plt.figure()
@@ -385,33 +457,39 @@ if __name__ == '__main__':
         ########################################################################
         # SVC fitting
         ########################################################################
+        for kern in ['linear', 'rbf']:
+            print('kernel: ' + kern)
+            print('optimizing classifier fit')
+            opt_c, min_error = get_opt_c(X_train, y_train, kern)
+            print('min CV error with training data: ', min_error)
+            clf = SVC(C=opt_c, kernel=kern)
+            clf.fit(X_train, y_train)
 
-        print('optimizing classifier fit')
-        opt_c, min_error = get_opt_c(X_train, y_train)
-        print('min CV error with training data: ', min_error)
-        clf = SVC(C=opt_c, kernel='linear')
-        clf.fit(X_train, y_train)
+            # total error for random sample members
+            error = get_error(X_test, y_test, clf)
+            print('error with normalized (total): ', error)
 
-        # total error for random sample members
-        error = get_error(X_test, y_test, clf)
-        print('error with normalized (total): ', error)
+            # total error for random exclusive P, I sample members
+            get_p_indices = np.vectorize(lambda x: x == 1)
+            get_i_indices = np.vectorize(lambda x: x == 2)
+            i_indices = get_p_indices(y_test)
+            p_indices = get_i_indices(y_test)
+            if print_count:
+                i_count = len(filter(lambda x: x == True, i_indices))
+                p_count = len(filter(lambda x: x == True, p_indices))
+                print('I count: ' + str(i_count))
+                print('P count: ' + str(p_count))
+            X_test_p = X_test[p_indices]
+            X_test_i = X_test[i_indices]
+            y_test_p = y_test[p_indices]
+            y_test_i = y_test[i_indices]
 
-        # total error for random exclusive P, I sample members
-        get_p_indices = np.vectorize(lambda x: x == 1)
-        get_i_indices = np.vectorize(lambda x: x == 2)
-        i_indices = get_p_indices(y_test)
-        p_indices = get_i_indices(y_test)
-        X_test_p = X_test[p_indices]
-        X_test_i = X_test[i_indices]
-        y_test_p = y_test[p_indices]
-        y_test_i = y_test[i_indices]
+            error_p = get_error(X_test_p, y_test_p, clf)
+            error_i = get_error(X_test_i, y_test_i, clf)
 
-        error_p = get_error(X_test_p, y_test_p, clf)
-        error_i = get_error(X_test_i, y_test_i, clf)
-
-        print('p error: ', error_p)
-        print('i error: ', error_i)
-    
+            print('p error: ', error_p)
+            print('i error: ', error_i)
+        
 
     ########################################################################
     # PCA stuff
