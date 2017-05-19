@@ -833,7 +833,7 @@
                  <rect>
                   <x>0</x>
                   <y>0</y>
-                  <width>125</width>
+                  <width>85</width>
                   <height>498</height>
                  </rect>
                 </property>
@@ -1050,16 +1050,12 @@
             </widget>
            </item>
            <item>
-            <widget class="QPushButton" name="pushButton_saveLabeledMembers">
-             <property name="text">
-              <string>Save All Waveforms</string>
-             </property>
-            </widget>
+            <widget class="QComboBox" name="comboBox_attrTypes"/>
            </item>
            <item>
             <widget class="QPushButton" name="pushButton_saveLabeledCluster">
              <property name="text">
-              <string>Save Mean Waveform</string>
+              <string>Save</string>
              </property>
             </widget>
            </item>

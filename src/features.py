@@ -96,6 +96,68 @@ class Feature_Peak(Feature):
         return np.max(spikeset.spikes[:, searchrange, :], axis=1)
 
 
+def double_resolution(wv, dt_ms):
+    wv_inbetween = []
+    for i in range(wv.size - 1):
+        wv_inbetween.append((wv[i] + wv[i + 1]) / 2.)
+    wv_inbetween.append(wv[-1] + (wv[-1] - wv_inbetween[-1]))
+    wv_inbetween = np.array(wv_inbetween)
+    wv_new = np.array([[wv], [wv_inbetween]]).transpose().flatten()
+    return wv_new, dt_ms / 2.
+
+'''
+class Feature_Fwhm(Feature):
+    def __init__(self, spikeset):
+        Feature.__init__(self, 'Fwhm', spikeset)
+
+    def calculate(self, spikeset):
+        def calculate_spike(wv):
+            wv, dt_ms = double_resolution(wv, spikeset.dt_ms)
+            peak_index = np.argmax(wv)
+            hm = wv[peak_index] / 2.  # half-max
+
+            def get_hm_index(side):
+                if side == 'l':
+                    indices = np.arange(peak_index - 1, -1, -1)
+                elif side == 'r':
+                    indices = np.arange(peak_index, len(wv), 1)
+                else:
+                    raise ValueError('get_hm_index parameter side must = "l" or "r"')
+
+                for i in indices:
+                    if i < len(wv) - 1:
+                        ub = abs(wv[i + 1] - wv[i])  # upper bound
+                    else:
+                        raise IndexError('FWHM calculation cannot find index in ' + side)
+
+                    if i > 0:
+                        lb = abs(wv[i] - wv[i - 1])   # lower bound
+                    else:
+                        raise IndexError('FWHM calculation cannot find index in ' + side)
+
+                    if wv[i] - lb <= hm <= wv[i] + ub:
+                        return i
+                raise IndexError('FWHM could not find index')
+
+            lhm_index = get_hm_index('l')
+            rhm_index = get_hm_index('r')
+            return (rhm_index - lhm_index) * dt_ms
+        
+        return np.apply_along_axis(calculate_spike, 1, spikeset.spikes)
+
+
+class Feature_P2vt(Feature):
+    def __init__(self, spikeset):
+        Feature.__init__(self, 'P2vt', spikeset)
+
+    def calculate(self, spikeset):
+        def calculate_spike(wv):
+            peak_index = spikeset.peak_index
+            valley_index = np.argmin(wv[peak_index:]) + peak_index
+            return (valley_index - peak_index) * spikeset.dt_ms
+        return np.apply_along_axis(calculate_spike, 1, spikeset.spikes)
+'''
+
 class Feature_Barycenter(Feature):
     def __init__(self, spikeset):
         Feature.__init__(self, 'Barycenter', spikeset)

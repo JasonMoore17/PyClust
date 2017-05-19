@@ -14,6 +14,7 @@ from sklearn.model_selection import StratifiedKFold
 PEAK_INDEX = 17
 CLASS_P = 1
 CLASS_I = 2
+CLASS_J = 3
 ROOT = os.path.join(os.path.dirname(__file__), '..', 'data', 'clf_data')
 
 ############################################################################
@@ -39,7 +40,7 @@ def get_fwhm(wv, dt_ms):
     argmax = np.argmax(wv)
     hm = wv[argmax] / 2.  # half max
 
-    def get_fwhm_arg(side):
+    def get_hm_arg(side):
         if side == 'left':
             indices = np.arange(argmax - 1, -1, -1)
         elif side == 'right':
@@ -69,8 +70,8 @@ def get_fwhm(wv, dt_ms):
         # error if we get here:
         raise ValueError('fwhm_arg')
 
-    arg_lhm = get_fwhm_arg('left')
-    arg_lhm = get_fwhm_arg('right')
+    arg_lhm = get_hm_arg('left')
+    arg_lhm = get_hm_arg('right')
     return (argRhm - argLhm) * dt_ms
 
 
@@ -140,53 +141,100 @@ def get_label(cluster, dt_ms):
     else:
         return 0
 
+
 # classifier data
 class DataSaver:
-    P = 1
-    I = 2
-    J = 3
-    def __init__(self, subject=None, session=None, fname=None):
+    def __init__(self, attr_type, subj=None, sess=None, tt=None):
         # 'PyClust/data/clf_data'
+        self.attr_type = attr_type
         self.root = os.path.join(os.path.dirname(__file__), '..', 'data', 
                 'clf_data')
 
         # used for directory structure of data files under classifier/data
-        self.subject = subject
-        self.session = session
-        self.fname = fname
+        self.subj = subj
+        self.sess = sess
+        self.tt = tt
 
         # keeps track of which file and cluster has been added
-        self.saved_mean = set()
-        self.saved_members = set()
+        self.saved= set()
 
-    # returns the directory path for the new data
-    def __get_file_path(self):
-        if self.subject == None or self.session == None:
-            return None
-        return os.path.join(self.root, self.subject, self.session)
 
-    # Creates path for new file if it does not exist
-    def __make_path(self):
-        path = self.__get_file_path()
+    # clust is the cluster index
+    def is_saved(self, clust_num):
+        return (self.subj, self.sess, self.tt, clust_num) in self.saved
+
+    def get_attrs(self, clust, label):
+        wv_mean = clust.wv_mean
+        rows = []
+        for chan in range(wv_mean.shape[1]):
+            row = wv_mean[:, chan]
+            listrow = row.tolist()
+            listrow.append(float(label))
+            row = np.array(listrow)
+            row = np.roll(row, 1)  # make label show first
+            rows.append(row)
+        rows = np.array(rows)
+        return rows
+
+
+    def save_cluster(self, clust, clust_num, label):
+        if label not in [CLASS_P, CLASS_I, CLASS_J]:
+            raise ValueError('invalid label')
+
+        path = os.path.join(self.root, self.attr_type, self.subj, self.sess)
         if not os.path.exists(path):
             os.makedirs(path)
 
-    def is_saved(self, subject, session, fname, clust_num, mode='mean'):
-        if mode is 'mean':
-            return (subject, session, fname, clust_num) in self.saved_mean
-        elif mode is 'members':
-            return (subject, session, fname, clust_num) in self.saved_members
-        else:
-            return False
+        if attr_type == 'means':
+
+        wv_mean = clust.wv_mean
+        rows = []
+        for chan in range(wv_mean.shape[1]):
+            row = wv_mean[:, chan]
+            listrow = row.tolist()
+            listrow.append(float(label))
+            row = np.array(listrow)
+            row = np.roll(row, 1)  # make label show first
+            rows.append(row)
+        rows = np.array(rows)
+
+
+        if fname == None:
+            fpathname = os.path.join(pathname, self.fname + '.csv')
+
+        with open(fpathname, 'a') as f:
+            if os.path.exists(fpathname):
+                np.savetxt(f, rows, fmt='%g', delimiter=',')
+            else:
+                np.savetxt(f, rows, fmt='%g', delimiter=',', header='label,waveform')
+
+        self.saved_means.add((self.subject, self.session, self.fname, clust_num))
+        return True
+
+
+
+    # returns the directory path for the new data
+    def __get_file_path(self, subroot=''):
+        if self.subject == None or self.session == None:
+            return None
+
+        return os.path.join(self.root, subroot, self.subject, self.session)
+
+    # Creates path for new file if it does not exist
+    def __make_path(self, subroot=''):
+        path = self.__get_file_path(subroot)
+        if not os.path.exists(path):
+            os.makedirs(path)
+
 
     # Saves labeled mean cluster waveforms of each channel to file.
     # Returns success or failure.
-    def cluster_to_file(self, clust, clust_num, label, fname=None):
+    def cluster_to_file(self, clust, clust_num, label, fname=None, subroot='means'):
 
-        pathname = self.__get_file_path()
+        pathname = self.__get_file_path(dtype)
         if not pathname:
             return False
-        if label < 1 or label > 3:
+        if label not in [CLASS_P, CLASS_I, CLASS_J]:
             return False
 
         self.__make_path()
@@ -212,7 +260,7 @@ class DataSaver:
             else:
                 np.savetxt(f, rows, fmt='%g', delimiter=',', header='label,waveform')
 
-        self.saved_mean.add((self.subject, self.session, self.fname, clust_num))
+        self.saved_means.add((self.subject, self.session, self.fname, clust_num))
         return True
 
 
