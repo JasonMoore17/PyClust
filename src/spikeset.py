@@ -98,6 +98,10 @@ class Spikeset:
         self.features.append(features.Feature_Valley(self))
         self.features.append(features.Feature_Trough(self))
 
+        # additional features
+        #self.features.append(features.Feature_Fwhm(self))
+        #self.features.append(features.Feature_P2vt(self))
+
         if self.use_pca:
             self.features.append(
                     features.Feature_PCA(self, self.feature_special['fPCA']))

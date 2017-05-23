@@ -10,6 +10,7 @@ from sklearn import decomposition
 import matplotlib.pyplot as plt
 from sklearn.svm import SVC
 from sklearn.model_selection import StratifiedKFold
+import features
 
 PEAK_INDEX = 17
 CLASS_P = 1
@@ -18,61 +19,58 @@ CLASS_J = 3
 ROOT = os.path.join(os.path.dirname(__file__), '..', 'data', 'clf_data')
 
 ############################################################################
-# compute features
+# Extra Features
 ############################################################################
 
 # if the original waveform wv has 60 timestamps, the output is
 # a waveform with 120 timestamps
-def double_resolution(wv, dt_ms):
-    wv_inbetween = []
-    for i in range(wv.size - 1):
-        wv_inbetween.append((wv[i] + wv[i + 1]) / 2.)
-    wv_inbetween.append((wv_inbetween[wv_inbetween.size - 1] 
-            - wv_inbetween[wv_inbetween.size - 2]) 
-            + wv_inbetween[wv_inbetween.size - 1])
-    wv_inbetween = np.array(wv_inbetween)
-    wv_new = np.array([[wv], [wv_inbetween]]).transpose().flatten()
+def double_resolution(wv, dt_ms):                                               
+    wv_inbetween = []                                                           
+    for i in range(wv.size - 1):                                                
+        wv_inbetween.append((wv[i] + wv[i + 1]) / 2.)                           
+
+    wv_inbetween.append(wv[-1] + (wv[-1] - wv_inbetween[-1]))                   
+    wv_inbetween = np.array(wv_inbetween)                                       
+    wv_new = np.array([[wv], [wv_inbetween]]).transpose().flatten()             
     return wv_new, dt_ms / 2.
 
 
 # compute full width at half maximum (FWHM)
-def get_fwhm(wv, dt_ms):
-    argmax = np.argmax(wv)
-    hm = wv[argmax] / 2.  # half max
+def get_fwhm(wv, dt_ms):                                                
+    wv, dt_ms = double_resolution(wv, dt_ms)                   
+    peak_index = np.argmax(wv)                                          
+    hm = wv[peak_index] / 2.  # half-max                                
 
-    def get_hm_arg(side):
-        if side == 'left':
-            indices = np.arange(argmax - 1, -1, -1)
-        elif side == 'right':
-            indices = np.arange(argmax, len(wv), 1)
-        else:
-            raise ValueError
+    def get_hm_index(side):                                             
+        if side == 'l':                                                 
+            indices = np.arange(peak_index - 1, -1, -1)                 
+        elif side == 'r':                                               
+            indices = np.arange(peak_index, len(wv), 1)                 
+        else:                                                           
+            raise ValueError('get_hm_index parameter side must = "l" or "r"')
 
-        for i in np.arange(argmax - 1, -1, -1):
-            if i < len(wv) - 1:
-                u_bound = abs(wv[i + 1] - wv[i])
-            else:
-                u_bound = None
-            if i > 0:
-                l_bound = abs(wv[i] - wv[i - 1])
-            else:
-                l_bound = None
-            if u_bound is not None and l_bound is not None:
-                if wv[i] - l_bound <= hm <= wv[i] + u_bound:
-                    return i
-            elif u_bound is None:
-                if hm > wv[i] - l_bound:
-                    return i
-            else: # l_bound is None
-                if hm < wv[i] + u_bound:
-                    return i
+        print('indices for side: ' + side)
+        print(indices)
 
-        # error if we get here:
-        raise ValueError('fwhm_arg')
+        for i in indices:                                               
+            if i < len(wv) - 1:                                         
+                ub = abs(wv[i + 1] - wv[i])  # upper bound              
+            else:                                                       
+                raise IndexError('index ' + str(i) + ' could not find upper bound for side ' + side)
 
-    arg_lhm = get_hm_arg('left')
-    arg_lhm = get_hm_arg('right')
-    return (argRhm - argLhm) * dt_ms
+            if i > 0:                                                   
+                lb = abs(wv[i] - wv[i - 1])   # lower bound             
+            else:                                                       
+                raise IndexError('index ' + str(i) + ' could not find lower bound for side ' + side)
+
+            if wv[i] - lb <= hm <= wv[i] + ub:                          
+                return i                                                
+
+        raise IndexError('FWHM calculation cannot find index in ' + side)
+
+    lhm_index = get_hm_index('l')                                       
+    rhm_index = get_hm_index('r')                                       
+    return (rhm_index - lhm_index) * dt_ms
 
 
 ############################################################################
@@ -142,163 +140,6 @@ def get_label(cluster, dt_ms):
         return 0
 
 
-# classifier data
-class DataSaver:
-    def __init__(self, attr_type, subj=None, sess=None, tt=None):
-        # 'PyClust/data/clf_data'
-        self.attr_type = attr_type
-        self.root = os.path.join(os.path.dirname(__file__), '..', 'data', 
-                'clf_data')
-
-        # used for directory structure of data files under classifier/data
-        self.subj = subj
-        self.sess = sess
-        self.tt = tt
-
-        # keeps track of which file and cluster has been added
-        self.saved= set()
-
-
-    # clust is the cluster index
-    def is_saved(self, clust_num):
-        return (self.subj, self.sess, self.tt, clust_num) in self.saved
-
-    def get_attrs(self, clust, label):
-        wv_mean = clust.wv_mean
-        rows = []
-        for chan in range(wv_mean.shape[1]):
-            row = wv_mean[:, chan]
-            listrow = row.tolist()
-            listrow.append(float(label))
-            row = np.array(listrow)
-            row = np.roll(row, 1)  # make label show first
-            rows.append(row)
-        rows = np.array(rows)
-        return rows
-
-
-    def save_cluster(self, clust, clust_num, label):
-        if label not in [CLASS_P, CLASS_I, CLASS_J]:
-            raise ValueError('invalid label')
-
-        path = os.path.join(self.root, self.attr_type, self.subj, self.sess)
-        if not os.path.exists(path):
-            os.makedirs(path)
-
-        if attr_type == 'means':
-
-        wv_mean = clust.wv_mean
-        rows = []
-        for chan in range(wv_mean.shape[1]):
-            row = wv_mean[:, chan]
-            listrow = row.tolist()
-            listrow.append(float(label))
-            row = np.array(listrow)
-            row = np.roll(row, 1)  # make label show first
-            rows.append(row)
-        rows = np.array(rows)
-
-
-        if fname == None:
-            fpathname = os.path.join(pathname, self.fname + '.csv')
-
-        with open(fpathname, 'a') as f:
-            if os.path.exists(fpathname):
-                np.savetxt(f, rows, fmt='%g', delimiter=',')
-            else:
-                np.savetxt(f, rows, fmt='%g', delimiter=',', header='label,waveform')
-
-        self.saved_means.add((self.subject, self.session, self.fname, clust_num))
-        return True
-
-
-
-    # returns the directory path for the new data
-    def __get_file_path(self, subroot=''):
-        if self.subject == None or self.session == None:
-            return None
-
-        return os.path.join(self.root, subroot, self.subject, self.session)
-
-    # Creates path for new file if it does not exist
-    def __make_path(self, subroot=''):
-        path = self.__get_file_path(subroot)
-        if not os.path.exists(path):
-            os.makedirs(path)
-
-
-    # Saves labeled mean cluster waveforms of each channel to file.
-    # Returns success or failure.
-    def cluster_to_file(self, clust, clust_num, label, fname=None, subroot='means'):
-
-        pathname = self.__get_file_path(dtype)
-        if not pathname:
-            return False
-        if label not in [CLASS_P, CLASS_I, CLASS_J]:
-            return False
-
-        self.__make_path()
-
-        wv_mean = clust.wv_mean
-        rows = []
-        for chan in range(wv_mean.shape[1]):
-            row = wv_mean[:, chan]
-            listrow = row.tolist()
-            listrow.append(float(label))
-            row = np.array(listrow)
-            row = np.roll(row, 1)  # make label show first
-            rows.append(row)
-        rows = np.array(rows)
-
-
-        if fname == None:
-            fpathname = os.path.join(pathname, self.fname + '.csv')
-
-        with open(fpathname, 'a') as f:
-            if os.path.exists(fpathname):
-                np.savetxt(f, rows, fmt='%g', delimiter=',')
-            else:
-                np.savetxt(f, rows, fmt='%g', delimiter=',', header='label,waveform')
-
-        self.saved_means.add((self.subject, self.session, self.fname, clust_num))
-        return True
-
-
-    # saves labeled cluster members to file
-    def members_to_file(self, ss, clust, clust_num, label, fname=None):
-        pathname = self.__get_file_path()
-        if not pathname:
-            return False
-        if label < 1 or label > 3:
-            return False
-        
-        self.__make_path()
-
-        clust_spikes = ss.spikes[clust.member]
-        rows = []
-        for i in range(clust_spikes.shape[0]):
-            for c in range(clust_spikes.shape[2]):
-                row = clust_spikes[i, :, c]
-                listrow = row.tolist()
-                listrow.append(float(label))
-                row = np.array(listrow)
-                row = np.roll(row, 1)  # make label show first
-                rows.append(row)
-        rows = np.array(rows)
-
-        if fname == None:
-            fpathname = os.path.join(pathname, self.fname + '_members.csv')
-
-        with open(fpathname, 'a') as f:
-            if os.path.exists(fpathname):
-                np.savetxt(f, rows, fmt='%g', delimiter=',')
-            else:
-                np.savetxt(f, rows, fmt='%g', delimiter=',', header='label,waveform')
-
-        self.saved_members.add((self.subject, self.session, self.fname, clust_num))
-        return True
-
-
 # Load all clustr mean data from PyClust/data/clf_data
 # returns (X, y) where X is n x d matrix of attributes and y is n x 1 vector of labels
 def load_data(target_path='', target_file=''):
@@ -325,38 +166,6 @@ def load_data(target_path='', target_file=''):
         X = np.delete(data, 0, axis=1)
         y = data[:,0].astype(int)
 
-    return X, y
-
-
-# load _members.csv data
-def load_spikes_data():
-    root = os.path.join(os.path.dirname(__file__), '..', 'data', 'clf_data')
-    data = None
-    for dirpath, dirnames, filenames in os.walk(root):
-        for fname in filenames:
-            if fname.endswith('_members.csv'):
-                if data is None:
-                    data = np.loadtxt(os.path.join(dirpath, fname), delimiter=',', skiprows=0)
-                else:
-                    data = np.append(data, np.loadtxt(os.path.join(dirpath, fname), delimiter=','),
-                                     axis=0)
-    if data is None:
-        return None
-    else:
-        X = np.delete(data, 0, axis=1)
-        y = data[:,0].astype(int)
-    return X, y
-
-
-def load_from_file(pathname, fname):
-    target = os.path.join(ROOT, pathname, fname)
-    if os.path.exists(target):
-        data = np.loadtxt(target, delimiter=',', skiprows=0)
-    if data is None:
-        return None
-    else:
-        X = np.delete(dtaa, 0, axis=1)
-        y = data[:, 0].astype(int)
     return X, y
 
 
@@ -464,79 +273,106 @@ def save_to_file(X, y, fname, fprefix=''):
 
 if __name__ == '__main__':
 
-    # switch to show plots
-    verbose = False
-
-    print_count = True
-
-    for mode in ['raw', 'normalized-by-max', 'normalized-by-each']:
-        # load, fit, and predict
-        print'mode: ' + mode
-        print('loading data')
-        if mode == 'raw':
-            X_train, y_train = load_data('raw/means')
-            X_test, y_test = load_data('raw/members')
-        elif mode == 'normalized-by-max':
-            X_train, y_train = load_data('normalized/means', 'normalized_means_by_total.csv')
-            X_test, y_test = load_data('normalized/members', 'normalized_members_by_total.csv')
-        elif mode == 'normalized-by-each':
-            X_train, y_train = load_data('normalized/means', 'normalized_means_by_each.csv')
-            X_test, y_test = load_data('normalized/members', 'normalized_members_by_each.csv')
-        else:
-            raise ValueError
-
-        print('X_test.shape: ' + str(X_test.shape))
-        print('y_test.shape: ' + str(y_test.shape))
-        X_test = X_test[500:2500]
-        y_test = y_test[500:2500]
-
-        print('X_test.shape: ' + str(X_test.shape))
-        print('y_test.shape: ' + str(y_test.shape))
-
-        if verbose:
-            for i in range(3):
-                plt.figure()
-                plt.title('raw')
-                #plt.plot(range(X_train.shape[1]), X_train[i])
-                plt.plot(range(X_test.shape[1]), X_test[i])
-                plt.show()
+    X, y = load_data('raw/means')
+    #print(np.arange(0, 60, 0.5))
+    #print(double_resolution(X[i], 1.))
+    for i in range(3):
+        max = np.amax(X[i])
+        plt.figure()
+        plt.title('mean')
+        plt.plot(np.arange(0, 60, 0.5), double_resolution(X[i], 1.)[0])
+        plt.plot(np.arange(0, 60, 0.5), [max / 2. for i in range(120)], 'r')
+        plt.show()
+        fwhm = get_fwhm(X[i], 1.)
+        print('fwhm: ' + str(fwhm))
+       
+    #for i in range(3):
+    #    #fwhm = get_fwhm(X[i], 1.)
+    #    #print('fwhm' + str(fwhm))
+    #    plt.figure()
+    #    plt.title('raw')
+    #    #plt.plot(range(X_train.shape[1]), X_train[i])
+    #    plt.plot(range(X.shape[1]), X[i])
+    #    plt.figure()
+    #    plt.title('raw - double resolution')
+    #    row, _ = double_resolution(X[i], 1.)
+    #    plt.plot(range(row.size), row)
+    #    plt.show()
 
 
-        ########################################################################
-        # SVC fitting
-        ########################################################################
-        for kern in ['linear', 'rbf']:
-            print('kernel: ' + kern)
-            print('optimizing classifier fit')
-            opt_c, min_error = get_opt_c(X_train, y_train, kern)
-            print('min CV error with training data: ', min_error)
-            clf = SVC(C=opt_c, kernel=kern)
-            clf.fit(X_train, y_train)
+    ## switch to show plots
+    #verbose = False
 
-            # total error for random sample members
-            error = get_error(X_test, y_test, clf)
-            print('error with normalized (total): ', error)
+    #print_count = True
 
-            # total error for random exclusive P, I sample members
-            get_p_indices = np.vectorize(lambda x: x == 1)
-            get_i_indices = np.vectorize(lambda x: x == 2)
-            i_indices = get_p_indices(y_test)
-            p_indices = get_i_indices(y_test)
-            if print_count:
-                i_count = len(filter(lambda x: x == True, i_indices))
-                p_count = len(filter(lambda x: x == True, p_indices))
-                print('I count: ' + str(i_count))
-                print('P count: ' + str(p_count))
-            X_test_p = X_test[p_indices]
-            X_test_i = X_test[i_indices]
-            y_test_p = y_test[p_indices]
-            y_test_i = y_test[i_indices]
+    #for mode in ['raw', 'normalized-by-max', 'normalized-by-each']:
+    #    # load, fit, and predict
+    #    print'mode: ' + mode
+    #    print('loading data')
+    #    if mode == 'raw':
+    #        X_train, y_train = load_data('raw/means')
+    #        X_test, y_test = load_data('raw/members')
+    #    elif mode == 'normalized-by-max':
+    #        X_train, y_train = load_data('normalized/means', 'normalized_means_by_total.csv')
+    #        X_test, y_test = load_data('normalized/members', 'normalized_members_by_total.csv')
+    #    elif mode == 'normalized-by-each':
+    #        X_train, y_train = load_data('normalized/means', 'normalized_means_by_each.csv')
+    #        X_test, y_test = load_data('normalized/members', 'normalized_members_by_each.csv')
+    #    else:
+    #        raise ValueError
 
-            error_p = get_error(X_test_p, y_test_p, clf)
-            error_i = get_error(X_test_i, y_test_i, clf)
+    #    print('X_test.shape: ' + str(X_test.shape))
+    #    print('y_test.shape: ' + str(y_test.shape))
+    #    X_test = X_test[500:2500]
+    #    y_test = y_test[500:2500]
 
-            print('p error: ', error_p)
-            print('i error: ', error_i)
+    #    print('X_test.shape: ' + str(X_test.shape))
+    #    print('y_test.shape: ' + str(y_test.shape))
+
+    #    if verbose:
+    #        for i in range(3):
+    #            plt.figure()
+    #            plt.title('raw')
+    #            #plt.plot(range(X_train.shape[1]), X_train[i])
+    #            plt.plot(range(X_test.shape[1]), X_test[i])
+    #            plt.show()
+
+
+    #    ########################################################################
+    #    # SVC fitting
+    #    ########################################################################
+    #    for kern in ['linear', 'rbf']:
+    #        print('kernel: ' + kern)
+    #        print('optimizing classifier fit')
+    #        opt_c, min_error = get_opt_c(X_train, y_train, kern)
+    #        print('min CV error with training data: ', min_error)
+    #        clf = SVC(C=opt_c, kernel=kern)
+    #        clf.fit(X_train, y_train)
+
+    #        # total error for random sample members
+    #        error = get_error(X_test, y_test, clf)
+    #        print('error with normalized (total): ', error)
+
+    #        # total error for random exclusive P, I sample members
+    #        get_p_indices = np.vectorize(lambda x: x == 1)
+    #        get_i_indices = np.vectorize(lambda x: x == 2)
+    #        i_indices = get_p_indices(y_test)
+    #        p_indices = get_i_indices(y_test)
+    #        if print_count:
+    #            i_count = len(filter(lambda x: x == True, i_indices))
+    #            p_count = len(filter(lambda x: x == True, p_indices))
+    #            print('I count: ' + str(i_count))
+    #            print('P count: ' + str(p_count))
+    #        X_test_p = X_test[p_indices]
+    #        X_test_i = X_test[i_indices]
+    #        y_test_p = y_test[p_indices]
+    #        y_test_i = y_test[i_indices]
+
+    #        error_p = get_error(X_test_p, y_test_p, clf)
+    #        error_i = get_error(X_test_i, y_test_i, clf)
+
+    #        print('p error: ', error_p)
+    #        print('i error: ', error_i)
         
 
     ########################################################################

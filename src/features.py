@@ -105,8 +105,9 @@ def double_resolution(wv, dt_ms):
     wv_new = np.array([[wv], [wv_inbetween]]).transpose().flatten()
     return wv_new, dt_ms / 2.
 
-'''
+
 class Feature_Fwhm(Feature):
+    # needs testing
     def __init__(self, spikeset):
         Feature.__init__(self, 'Fwhm', spikeset)
 
@@ -147,6 +148,7 @@ class Feature_Fwhm(Feature):
 
 
 class Feature_P2vt(Feature):
+    # needs testing
     def __init__(self, spikeset):
         Feature.__init__(self, 'P2vt', spikeset)
 
@@ -156,7 +158,6 @@ class Feature_P2vt(Feature):
             valley_index = np.argmin(wv[peak_index:]) + peak_index
             return (valley_index - peak_index) * spikeset.dt_ms
         return np.apply_along_axis(calculate_spike, 1, spikeset.spikes)
-'''
 
 class Feature_Barycenter(Feature):
     def __init__(self, spikeset):
