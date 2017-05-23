@@ -33,18 +33,26 @@ def normalize(X):
 
 
 # convert files from srcroot using transformation func and save to destroot
-def io_transform(func, srcroot, destroot):
-    print('ROOT: ' + ROOT)
+def io_transform(func, srcroot, dstroot):
+    print('Executing io_transform: loading from ' + srcroot + ' to ' + dstroot)
     for dirpath, dirnames, filenames in os.walk(os.path.join(ROOT, srcroot)):
         csvs = filter(lambda f: f.endswith('.csv'), filenames)              
         for fname in csvs:                                                  
-            fpath = os.path.join(dirpath, fname)
-            print('fpath: ' + fpath)
-            X, y = classifier.load_data(srcroot)
+            print('loading from file: ' + os.path.join(dirpath, fname))
+            X, y = classifier.load_data(os.path.join(dirpath, fname))
             X_new = func(X)
 
-            subj_sess = os.path.split(fpath[len(ROOT) + 1 + len(srcroot):])[0]
-            print('subj_sess: ' + subj_sess)
+            src_fpath = os.path.join(dirpath, fname)
+            subj_sess = os.path.split(src_fpath[len(ROOT) + 1 + len(srcroot):])[0]
+
+            print('saving to file: ' + os.path.join(ROOT, dstroot, subj_sess))
+            dst_dirpath = os.path.join(ROOT, dstroot, subj_sess)
+            if not os.path.exists(dst_dirpath):
+                os.makedirs(dst_dirpath)
+
+            rows = np.array(map(lambda X_row, y_label: np.roll(np.append(X_row, y_label), 1), X, y))
+            with open(os.path.join(dst_dirpath, fname, 'w')) as f:
+                np.savetxt(f, rows, fmt='%g', delimiter=',', header='label,attributes')
             
             
 if __name__ == '__main__':
