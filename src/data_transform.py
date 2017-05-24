@@ -54,22 +54,30 @@ def io_transform(func, srcroot, dstroot):
             if not os.path.exists(dst_dirpath):
                 os.makedirs(dst_dirpath)
 
-            rows = np.array(map(lambda X_row, y_label: np.roll(np.append(X_row, y_label), 1), X, y))
+            rows = np.array(map(lambda X_row, y_label: np.roll(np.append(X_row, y_label), 1), X_new, y))
             with open(os.path.join(dst_dirpath, fname), 'w') as f:
                 np.savetxt(f, rows, fmt='%g', delimiter=',', header='label,attributes')
             
             
 if __name__ == '__main__':
     X, y = classifier.load_data('raw/means')
-    #io_transform(normalize, 'raw/means', 'normalize')
+    io_transform(normalize, 'raw/means', 'normalize')
     io_transform(baseline_to_zero, 'raw/means', 'baseline_to_zero')
     #io_transform(lambda x: x, 'raw/means', 'identity')
-    #nplots = 3
-    #for i in range(nplots):
-    #    plt.figure()
-    #    plt.title('Not baseline zeroed')
-    #    plt.plot(range(X.shape[1]), X[i])
-    #    plt.figure()
-    #    plt.title('Baseline zeroed')
-    #    plt.plot(range(X.shape[1]), X_bsln0[i])
-    #    plt.show()
+    X_n, y_n = classifier.load_data('normalize')
+    X_b, y_b = classifier.load_data('baseline_to_zero')
+    nplots = 3
+    for i in range(nplots):
+        plt.figure()
+        plt.title('raw')
+        plt.plot(range(X.shape[1]), X[-1 - i])
+        #plt.plot(range(X.shape[1]), X[i])
+        plt.figure()
+        plt.title('baseline_to_zero')
+        plt.plot(range(X_b.shape[1]), X_b[-1 - i])
+        #plt.plot(range(X_b.shape[1]), X_b[i])
+        plt.figure()
+        plt.title('normalize')
+        plt.plot(range(X_n.shape[1]), X_n[-1 - i])
+        #plt.plot(range(X_n.shape[1]), X_n[i])
+        plt.show()
