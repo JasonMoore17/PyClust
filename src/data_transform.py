@@ -16,7 +16,8 @@ print('ROOT: ' + ROOT)
 def baseline_to_zero(X):
     def per_row(row):
         argmax = np.argmax(row)
-        offset = np.amin(row[0:argmax])
+        argmin = np.argmin(row[:argmax])
+        offset = np.mean(row[:argmin])
         return np.array(map(lambda x: x - offset, row))
 
     return np.array(map(lambda row: per_row(row), X))
@@ -61,23 +62,37 @@ def io_transform(func, srcroot, dstroot):
             
 if __name__ == '__main__':
     X, y = classifier.load_data('raw/means')
-    io_transform(normalize, 'raw/means', 'normalize')
-    io_transform(baseline_to_zero, 'raw/means', 'baseline_to_zero')
+    io_transform(normalize, 'raw/means', 'norm')
+    io_transform(baseline_to_zero, 'raw/means', 'bsln0')
+    def bsln0_AND_norm(X):
+        X_new = baseline_to_zero(X)
+        X_new = normalize(X_new)
+        return X_new
+
+    #io_transform(bsln0_AND_norm, 'raw/means', 'bsln0_AND_norm')
+
     #io_transform(lambda x: x, 'raw/means', 'identity')
-    X_n, y_n = classifier.load_data('normalize')
-    X_b, y_b = classifier.load_data('baseline_to_zero')
+    #X_n, y_n = classifier.load_data('normalize')
+    #X_b, y_b = classifier.load_data('baseline_to_zero')
+    #X_new, y_new = classifier.load_data('bsln0_AND_norm')
+    X_new, y_new = classifier.load_data('bsln0')
     nplots = 3
     for i in range(nplots):
         plt.figure()
         plt.title('raw')
         plt.plot(range(X.shape[1]), X[-1 - i])
-        #plt.plot(range(X.shape[1]), X[i])
         plt.figure()
-        plt.title('baseline_to_zero')
-        plt.plot(range(X_b.shape[1]), X_b[-1 - i])
-        #plt.plot(range(X_b.shape[1]), X_b[i])
-        plt.figure()
-        plt.title('normalize')
-        plt.plot(range(X_n.shape[1]), X_n[-1 - i])
-        #plt.plot(range(X_n.shape[1]), X_n[i])
+        plt.title('transformed')
+        plt.plot(range(X_new.shape[1]), X_new[-1 - i])
         plt.show()
+        
+        ##plt.plot(range(X.shape[1]), X[i])
+        #plt.figure()
+        #plt.title('baseline_to_zero')
+        #plt.plot(range(X_b.shape[1]), X_b[-1 - i])
+        ##plt.plot(range(X_b.shape[1]), X_b[i])
+        #plt.figure()
+        #plt.title('normalize')
+        #plt.plot(range(X_n.shape[1]), X_n[-1 - i])
+        ##plt.plot(range(X_n.shape[1]), X_n[i])
+        #plt.show()
