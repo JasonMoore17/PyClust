@@ -12,6 +12,10 @@ from sklearn.svm import SVC
 from sklearn.model_selection import StratifiedKFold
 import features
 
+class LoadingError(Exception):
+    pass
+
+
 PEAK_INDEX = 17
 CLASS_P = 1
 CLASS_I = 2
@@ -145,6 +149,10 @@ def get_label(cluster, dt_ms):
 def load_data(target_path='', target_file=''):
     data = None
 
+    if not target_file == '':
+        if target_path == '':
+            raise ValueError('target_path must be nonempty if target_file is filled')
+
     # look through entire directory tree rooted at 'clf_data/<target_path>'
     for dirpath, dirnames, filenames in os.walk(os.path.join(ROOT, target_path)):
         if target_file == '':
@@ -155,13 +163,13 @@ def load_data(target_path='', target_file=''):
                 else:
                     data = np.append(data, np.loadtxt(os.path.join(dirpath, fname), delimiter=','),
                                      axis=0)
-
         else:
-            for fname in filter(lambda f: f == target_file, filenames):
-                data = np.loadtxt(os.path.join(dirpath, fname), delimiter=',', skiprows=0)
+            if target_file in filenames:
+                data = np.loadtxt(os.path.join(dirpath, target_file), delimiter=',', skiprows=0)
+                break
 
     if data is None:
-        return None
+        raise LoadingError('Unable to load data with parameters ' + str((target_path, target_file)))
     else:
         X = np.delete(data, 0, axis=1)
         y = data[:,0].astype(int)

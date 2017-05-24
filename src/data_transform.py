@@ -5,6 +5,7 @@ import os
 import classifier
 
 ROOT = classifier.ROOT
+print('ROOT: ' + ROOT)
 
 ##################################################################
 # Data Transformations
@@ -39,25 +40,30 @@ def io_transform(func, srcroot, dstroot):
         csvs = filter(lambda f: f.endswith('.csv'), filenames)              
         for fname in csvs:                                                  
             print('loading from file: ' + os.path.join(dirpath, fname))
-            X, y = classifier.load_data(os.path.join(dirpath, fname))
+            X, y = classifier.load_data(dirpath, fname)
             X_new = func(X)
 
+            subj_sess = dirpath[(len(ROOT) + 2 + len(srcroot)) :]
             src_fpath = os.path.join(dirpath, fname)
-            subj_sess = os.path.split(src_fpath[len(ROOT) + 1 + len(srcroot):])[0]
 
-            print('saving to file: ' + os.path.join(ROOT, dstroot, subj_sess))
+            print('subj_sess: ' + subj_sess)
+            print('dstroot: ' + dstroot)
+
             dst_dirpath = os.path.join(ROOT, dstroot, subj_sess)
+            print('saving to directory: ' + dst_dirpath)
             if not os.path.exists(dst_dirpath):
                 os.makedirs(dst_dirpath)
 
             rows = np.array(map(lambda X_row, y_label: np.roll(np.append(X_row, y_label), 1), X, y))
-            with open(os.path.join(dst_dirpath, fname, 'w')) as f:
+            with open(os.path.join(dst_dirpath, fname), 'w') as f:
                 np.savetxt(f, rows, fmt='%g', delimiter=',', header='label,attributes')
             
             
 if __name__ == '__main__':
     X, y = classifier.load_data('raw/means')
-    io_transform(lambda x: x, 'raw/means', 'identity')
+    #io_transform(normalize, 'raw/means', 'normalize')
+    io_transform(baseline_to_zero, 'raw/means', 'baseline_to_zero')
+    #io_transform(lambda x: x, 'raw/means', 'identity')
     #nplots = 3
     #for i in range(nplots):
     #    plt.figure()
