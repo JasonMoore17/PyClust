@@ -5,7 +5,74 @@ import os
 import classifier
 
 ROOT = classifier.ROOT
-print('ROOT: ' + ROOT)
+
+##################################################################
+# Feature Calculation
+##################################################################
+def double_resolution(wv, dt_ms):                                               
+    wv_inbetween = []                                                           
+    for i in range(wv.size - 1):                                                
+        wv_inbetween.append((wv[i] + wv[i + 1]) / 2.)                           
+    wv_inbetween.append(wv[-1] + (wv[-1] - wv_inbetween[-1]))                   
+    wv_inbetween = np.array(wv_inbetween)                                       
+    wv_new = np.array([[wv], [wv_inbetween]]).transpose().flatten()             
+    return wv_new, dt_ms / 2.
+
+def calc_fwhm(spikes):
+    def calculate_spike(wv):                                                
+        dt_ms = 1.
+        wv, dt_ms = double_resolution(wv, dt_ms)                   
+        wv, dt_ms = double_resolution(wv, dt_ms)                   
+        peak_index = np.argmax(wv)                                          
+        hm = wv[peak_index] / 2.  # half-max                                
+
+        def get_hm_index(side):                                             
+            if side == 'l':                                                 
+                indices = np.arange(peak_index - 1, -1, -1)                 
+            elif side == 'r':                                               
+                indices = np.arange(peak_index, len(wv), 1)                 
+            else:                                                           
+                raise ValueError('get_hm_index parameter side must = "l" or "r"')
+
+            for i in indices:                                               
+                if i < len(wv) - 1:                                         
+                    ub = abs(wv[i + 1] - wv[i])  # upper bound              
+                else:                                                       
+                    raise IndexError('FWHM calculation cannot find index in ' + side)
+
+                if i > 0:                                                   
+                    lb = abs(wv[i] - wv[i - 1])   # lower bound             
+                else:                                                       
+                    raise IndexError('FWHM calculation cannot find index in ' + side)
+
+                if wv[i] - lb <= hm <= wv[i] + ub:                          
+                    return i                                                
+            raise IndexError('FWHM could not find index')                   
+
+        lhm_index = get_hm_index('l')                                       
+        rhm_index = get_hm_index('r')                                       
+        return (rhm_index - lhm_index) * dt_ms                              
+
+    return np.apply_along_axis(calculate_spike, 1, spikes) 
+
+
+def calc_p2vt(spikes):                                              
+    def calculate_spike(wv):                                                
+        dt_ms = 1.
+        #wv, dt_ms = double_resolution(wv, dt_ms)                   
+        #wv, dt_ms = double_resolution(wv, dt_ms)                   
+        print('dt_ms: ' + str(dt_ms))
+        peak_index = np.argmax(wv)
+        valley_index = np.argmin(wv[peak_index:]) + peak_index              
+        print('peak_index: ' + str(peak_index))
+        print('valley_index: ' + str(valley_index))
+        print('valley_index - peak_index: ' + str(valley_index - peak_index))
+        plt.figure()
+        plt.plot(range(len(wv)), wv, 'o')
+        plt.show()
+        return (valley_index - peak_index) * dt_ms
+    return np.apply_along_axis(calculate_spike, 1, spikes)
+
 
 ##################################################################
 # Data Transformations
@@ -62,37 +129,14 @@ def io_transform(func, srcroot, dstroot):
             
 if __name__ == '__main__':
     X, y = classifier.load_data('raw/means')
-    io_transform(normalize, 'raw/means', 'norm')
-    io_transform(baseline_to_zero, 'raw/means', 'bsln0')
-    def bsln0_AND_norm(X):
-        X_new = baseline_to_zero(X)
-        X_new = normalize(X_new)
-        return X_new
+    #fwhm = calc_fwhm(X)
+    p2vt = calc_p2vt(X)
+    #nplots = 3
+    #for i in range(nplots):
+    #    plt.figure()
+    #    plt.title('raw')
+    #    plt.plot(range(X.shape[1]), X[-1 - i], 'o')
+    #    plt.plot(range(X.shape[1]) ,[np.amax(X[-1 - i]) / 2. for x in range(X.shape[1])], 'r--')
+    #    print('fwhm: ' + str(fwhm[-1 - i]))
+    #    plt.show()
 
-    #io_transform(bsln0_AND_norm, 'raw/means', 'bsln0_AND_norm')
-
-    #io_transform(lambda x: x, 'raw/means', 'identity')
-    #X_n, y_n = classifier.load_data('normalize')
-    #X_b, y_b = classifier.load_data('baseline_to_zero')
-    #X_new, y_new = classifier.load_data('bsln0_AND_norm')
-    X_new, y_new = classifier.load_data('bsln0')
-    nplots = 3
-    for i in range(nplots):
-        plt.figure()
-        plt.title('raw')
-        plt.plot(range(X.shape[1]), X[-1 - i])
-        plt.figure()
-        plt.title('transformed')
-        plt.plot(range(X_new.shape[1]), X_new[-1 - i])
-        plt.show()
-        
-        ##plt.plot(range(X.shape[1]), X[i])
-        #plt.figure()
-        #plt.title('baseline_to_zero')
-        #plt.plot(range(X_b.shape[1]), X_b[-1 - i])
-        ##plt.plot(range(X_b.shape[1]), X_b[i])
-        #plt.figure()
-        #plt.title('normalize')
-        #plt.plot(range(X_n.shape[1]), X_n[-1 - i])
-        ##plt.plot(range(X_n.shape[1]), X_n[i])
-        #plt.show()
