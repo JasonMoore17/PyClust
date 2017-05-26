@@ -113,8 +113,9 @@ class Feature_Fwhm(Feature):
 
     def calculate(self, spikeset):
         def calculate_spike(wv):
-            wv, dt_ms = double_resolution(wv, spikeset.dt_ms)
-            wv, dt_ms = double_resolution(wv, spikeset.dt_ms)
+            dt_ms = spikeset.dt_ms
+            wv, dt_ms = double_resolution(wv, dt_ms)
+            wv, dt_ms = double_resolution(wv, dt_ms)
             peak_index = np.argmax(wv)
             hm = wv[peak_index] / 2.  # half-max
 
@@ -159,6 +160,7 @@ class Feature_P2vt(Feature):
             valley_index = np.argmin(wv[peak_index:]) + peak_index
             return (valley_index - peak_index) * spikeset.dt_ms
         return np.apply_along_axis(calculate_spike, 1, spikeset.spikes)
+
 
 class Feature_Barycenter(Feature):
     def __init__(self, spikeset):

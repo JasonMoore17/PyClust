@@ -22,136 +22,14 @@ CLASS_I = 2
 CLASS_J = 3
 ROOT = os.path.join(os.path.dirname(__file__), '..', 'data', 'clf_data')
 
-############################################################################
-# Extra Features
-############################################################################
-
-# if the original waveform wv has 60 timestamps, the output is
-# a waveform with 120 timestamps
-def double_resolution(wv, dt_ms):                                               
-    wv_inbetween = []                                                           
-    for i in range(wv.size - 1):                                                
-        wv_inbetween.append((wv[i] + wv[i + 1]) / 2.)                           
-
-    wv_inbetween.append(wv[-1] + (wv[-1] - wv_inbetween[-1]))                   
-    wv_inbetween = np.array(wv_inbetween)                                       
-    wv_new = np.array([[wv], [wv_inbetween]]).transpose().flatten()             
-    return wv_new, dt_ms / 2.
-
-
-# compute full width at half maximum (FWHM)
-def get_fwhm(wv, dt_ms):                                                
-    wv, dt_ms = double_resolution(wv, dt_ms)                   
-    peak_index = np.argmax(wv)                                          
-    hm = wv[peak_index] / 2.  # half-max                                
-
-    def get_hm_index(side):                                             
-        if side == 'l':                                                 
-            indices = np.arange(peak_index - 1, -1, -1)                 
-        elif side == 'r':                                               
-            indices = np.arange(peak_index, len(wv), 1)                 
-        else:                                                           
-            raise ValueError('get_hm_index parameter side must = "l" or "r"')
-
-        print('indices for side: ' + side)
-        print(indices)
-
-        for i in indices:                                               
-            if i < len(wv) - 1:                                         
-                ub = abs(wv[i + 1] - wv[i])  # upper bound              
-            else:                                                       
-                raise IndexError('index ' + str(i) + ' could not find upper bound for side ' + side)
-
-            if i > 0:                                                   
-                lb = abs(wv[i] - wv[i - 1])   # lower bound             
-            else:                                                       
-                raise IndexError('index ' + str(i) + ' could not find lower bound for side ' + side)
-
-            if wv[i] - lb <= hm <= wv[i] + ub:                          
-                return i                                                
-
-        raise IndexError('FWHM calculation cannot find index in ' + side)
-
-    lhm_index = get_hm_index('l')                                       
-    rhm_index = get_hm_index('r')                                       
-    return (rhm_index - lhm_index) * dt_ms
-
-
-############################################################################
-
-# predict the label to save
-def get_label(cluster, dt_ms):
-    # if the original waveform wv has 60 timestamps, the output is
-    # a waveform with 120 timestamps
-    def double_resolution(wv, dt_ms):
-        wv_inbetween = []
-        for i in range(wv.size - 1):
-            wv_inbetween.append((wv[i] + wv[i + 1]) / 2.)
-        wv_inbetween.append((wv_inbetween[wv_inbetween.size - 1] 
-                - wv_inbetween[wv_inbetween.size - 2]) 
-                + wv_inbetween[wv_inbetween.size - 1])
-        wv_inbetween = np.array(wv_inbetween)
-        wv_new = np.array([[wv], [wv_inbetween]]).transpose().flatten()
-        return (wv_new, dt_ms / 2.)
-
-    # compute full width at half maximum (FWHM)
-    def get_fwhm(wv, dt_ms):
-        argmax = np.argmax(wv)
-
-        # align waveform to 0 for baseline left of amplitude
-        min = np.min(wv[:argmax])
-        voffset = np.vectorize(lambda x: x - min)
-        wv = voffset(wv)
-        max = np.amax(wv)
-
-        vdist = np.vectorize(lambda x: abs(max / 2. - x))
-        argLhm = np.argmin(vdist(wv[:argmax]))
-        argRhm = np.argmin(vdist(wv[argmax:])) + argmax
-        return (argRhm - argLhm) * dt_ms
-
-    # compute time from peak to valley
-    def get_p2vt(wv, dt_ms):
-        peakIndex = np.argmax(wv)
-        valleyIndex = np.argmin(wv[peakIndex:]) + peakIndex
-        return (valleyIndex - peakIndex) * dt_ms
-
-    chans = cluster.wv_mean.shape[1]
-    counts = np.zeros(3)
-
-    for chan in range(chans):
-        wv = cluster.wv_mean[:, chan]
-        wv2xres, dt_ms2xres = double_resolution(wv, dt_ms)
-        fwhm = get_fwhm(wv2xres, dt_ms2xres)
-        p2vt = get_p2vt(wv2xres, dt_ms2xres)
-        if cluster.stats['csi'] == np.NAN:
-            return 0  # unlabeled
-        elif cluster.stats['csi'] > 10:  # Pyramidal
-            if 1.6 * fwhm + p2vt > 0.95:
-                counts[1] += 1  # Pyramidal
-            else:
-                counts[0] += 1  # unlabeled
-        else:
-            if 1.6 * fwhm + p2vt < 0.95:
-                counts[2] += 1  # Interneuron
-            else:
-                counts[0] += 1  # unlabeled
-
-    if counts[1] > counts[2]:
-        return 1
-    elif counts[2] > counts[1]:
-        return 2
-    else:
-        return 0
-
-
-# Load all clustr mean data from PyClust/data/clf_data
+# Load all cluster mean data from PyClust/data/clf_data
 # returns (X, y) where X is n x d matrix of attributes and y is n x 1 vector of labels
 def load_data(target_path='', target_file=''):
     data = None
 
     if not target_file == '':
         if target_path == '':
-            raise ValueError('target_path must be nonempty if target_file is filled')
+            raise ValueError('target_path must be nonempty if target_file is nonempty')
 
     # look through entire directory tree rooted at 'clf_data/<target_path>'
     for dirpath, dirnames, filenames in os.walk(os.path.join(ROOT, target_path)):
@@ -159,13 +37,13 @@ def load_data(target_path='', target_file=''):
             csvs = filter(lambda f: f.endswith('.csv'), filenames)
             for fname in csvs:
                 if data is None:
-                    data = np.loadtxt(os.path.join(dirpath, fname), delimiter=',', skiprows=0)
+                    data = np.loadtxt(os.path.join(dirpath, fname), delimiter=',', skiprows=2)
                 else:
                     data = np.append(data, np.loadtxt(os.path.join(dirpath, fname), delimiter=','),
                                      axis=0)
         else:
             if target_file in filenames:
-                data = np.loadtxt(os.path.join(dirpath, target_file), delimiter=',', skiprows=0)
+                data = np.loadtxt(os.path.join(dirpath, target_file), delimiter=',', skiprows=2)
                 break
 
     if data is None:
@@ -175,6 +53,13 @@ def load_data(target_path='', target_file=''):
         y = data[:,0].astype(int)
 
     return X, y
+
+
+def load_dt_ms(path, fname):
+    with open(os.path.join(path, fname)) as f:
+        for i, row in enumerate(f):
+            if i == 1:
+                return float(row)
 
 
 # compute cross-validation error of classifier
@@ -228,55 +113,6 @@ def get_opt_c(X, y, kernel='linear'):
             opt_c = c
 
     return opt_c, min_error
-
-
-# Compute the error of training classifier 'clf' on training data
-# 'X_train', 'y_train'. Test on samples 'X_test', 'y_test'.
-def get_error(X_test, y_test, clf):
-    y_pred = clf.predict(X_test)
-
-    # count number of mispredictions
-    n_mispreds = 0.0
-    for i in range(y_test.size):
-        if not y_pred[i] == y_test[i]:
-            n_mispreds += 1.0
-    
-    return n_mispreds / float(y_test.size)
-
-
-def normalize(X, mode='total', max_peak=None):
-    if mode == 'total':
-        # each spike adjusts by the max peak of all spikes
-        if max_peak is None:
-            max_peak = np.amax(map(lambda row: np.amax(row), X))
-        return np.array(map(lambda row: map(lambda x: x / max_peak, row), X)), max_peak
-
-    elif mode == 'each':
-        # each spike adjusts by the max peak of that spike; i.e. each amplitude
-        # is scaled to 1
-        def div_row_by(row, factor):
-            if factor == 0.:
-                return row
-            else:
-                return map(lambda x: x / factor, row)
-
-        #return np.array(map(lambda row: map(lambda x: x / np.amax(row), row), X))
-        return np.array(map(lambda row: div_row_by(row, np.amax(row)), X))
-
-    else:
-        raise ValueError('invalid argument for parameter "mode"')
-
-
-def save_to_file(X, y, fname, fprefix=''):
-    rows = np.array(map(lambda X_row, y_label: np.roll(np.append(X_row, y_label), 1), X, y))
-
-    fpath = os.path.join(ROOT, fprefix)
-    if not os.path.exists(fpath):
-        os.makedirs(fpath)
-
-    with open(os.path.join(fpath, fname), 'w') as f:
-        np.savetxt(f, rows, fmt='%g', delimiter=',', header='label,waveform')
-    return True
 
 
 if __name__ == '__main__':

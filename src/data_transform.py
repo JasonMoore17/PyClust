@@ -51,6 +51,7 @@ def calc_fwhm(spikes):
 
         lhm_index = get_hm_index('l')                                       
         rhm_index = get_hm_index('r')                                       
+        print('fhwm: ' + str((rhm_index - lhm_index) * dt_ms))
         return (rhm_index - lhm_index) * dt_ms                              
 
     return np.apply_along_axis(calculate_spike, 1, spikes) 
@@ -129,8 +130,8 @@ def io_transform(func, srcroot, dstroot):
             
 if __name__ == '__main__':
     X, y = classifier.load_data('raw/means')
-    #fwhm = calc_fwhm(X)
-    p2vt = calc_p2vt(X)
+    fwhm = calc_fwhm(X)
+    #p2vt = calc_p2vt(X)
     #nplots = 3
     #for i in range(nplots):
     #    plt.figure()

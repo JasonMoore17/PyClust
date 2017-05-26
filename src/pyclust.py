@@ -64,6 +64,7 @@ def xcorr(x1, x2, demean=True, normed=True):
 
 class PyClustMainWindow(QtGui.QMainWindow):
 
+
     @QtCore.Slot()
     def on_actionWaveform_Cutter_triggered(self):
         self.ui.stackedWidget.setCurrentIndex(1)
@@ -75,16 +76,7 @@ class PyClustMainWindow(QtGui.QMainWindow):
         #self.ui.comboBox_labels.setCurrentIndex(label_pred)
 
         # conditionally disable save-labeled-cluster button
-        clust_num_h = filter(lambda (i, c): self.activeClusterRadioButton().cluster_reference
-                                            is c, enumerate(self.spikeset.clusters))
-        clust_num = clust_num_h[0][0] if not clust_num_h == [] else None
-
-        saver = self.saver_set.get_saver(self.ui.comboBox_attrTypes.currentText())
-        if saver.is_saved(self.ui.label_subjectid.text(), self.ui.label_session.text(),
-                                 self.ui.label_fname.text(), clust_num):
-            self.ui.pushButton_saveLabeledCluster.setEnabled(False)
-        else:
-            self.ui.pushButton_saveLabeledCluster.setEnabled(True)
+        self.action_condDisableSaveCluster()
 
 
     def switch_to_maindisplay(self):
@@ -93,6 +85,7 @@ class PyClustMainWindow(QtGui.QMainWindow):
 
     @QtCore.Slot()
     def on_actionMerge_Clusters_triggered(self):
+        print('on_actionMerge_Clusters_triggered')
         active = self.activeClusterRadioButton()
         if active and active.cluster_reference != self.junk_cluster:
             # get the current cluster 'number'
@@ -735,7 +728,9 @@ class PyClustMainWindow(QtGui.QMainWindow):
 
         # training data for classifier
         self.ui.pushButton_saveLabeledCluster.clicked.connect(
-                self.action_saveLabeledCluster)\
+                self.action_saveLabeledCluster)
+        self.ui.comboBox_attrTypes.currentIndexChanged.connect(
+                self.action_condDisableSaveCluster)
 
         self.ui.label_subjectid.setText('')
         self.ui.label_session.setText('')
@@ -1585,19 +1580,6 @@ class PyClustMainWindow(QtGui.QMainWindow):
             os.path.splitext(os.path.split(fname)[1])[0])
         self.curfile = fname
 
-        # Load info to keep track of which clusters have been added to DataSaver for ML
-        self.saver_set = datasaver.DataSaverSet(self.spikeset, self.ui.label_subjectid.text(),
-                self.ui.label_session.text(), self.ui.label_fname.text())
-
-        # conditionally disable save-labeled-cluster button
-        clust_num_h = filter(lambda (i, c): self.activeClusterRadioButton().cluster_reference
-                                            is c, enumerate(self.spikeset.clusters))
-        clust_num = clust_num_h[0][0] if not clust_num_h == [] else None
-
-        # add options in comboBox
-        for saver in self.saver_set.get_savers():
-            self.ui.comboBox_attrTypes.addItem(saver.get_attr_type())
-
         self.undoStack.clear()
 
         self.t_bins = np.arange(self.spikeset.time[0],
@@ -1699,6 +1681,21 @@ class PyClustMainWindow(QtGui.QMainWindow):
         self.update_ui_cluster_buttons()
         self.updateClusterDetailPlots()
         self.updateFeaturePlot()
+
+        # Load info to keep track of which clusters have been added to DataSaver for ML
+        self.saver_set = datasaver.DataSaverSet(self.spikeset, self.ui.label_subjectid.text(),
+                self.ui.label_session.text(), self.ui.label_fname.text())
+
+        # conditionally disable save-labeled-cluster button
+        clust_num_h = filter(lambda (i, c): self.activeClusterRadioButton().cluster_reference
+                                            is c, enumerate(self.spikeset.clusters))
+        clust_num = clust_num_h[0][0] if not clust_num_h == [] else None
+
+        # add options in comboBox
+        self.ui.comboBox_attrTypes.addItem('')
+        for saver in self.saver_set.get_savers():
+            self.ui.comboBox_attrTypes.addItem(saver.get_attr_type())
+
 
     @QtCore.Slot()
     def on_actionOpen_triggered(self):
@@ -2322,9 +2319,41 @@ class PyClustMainWindow(QtGui.QMainWindow):
         else:
             clust_num = None
         label = self.ui.comboBox_labels.currentIndex()
-        saver = self.saver_set.get_saver(self.ui.comboBox_attrTypes.currentText())
-        saver.save_cluster(clust, clust_num, self.spikeset, label)
+        cur_attrname = self.ui.comboBox_attrTypes.currentText()
+        if cur_attrname == '':
+            saver = self.saver_set.get_saver('raw/means')
+            saver.save_cluster(clust, clust_num, self.spikeset, label)
+            saver = self.saver_set.get_saver('raw/members')
+            saver.save_cluster(clust, clust_num, self.spikeset, label)
+        else: 
+            saver = self.saver_set.get_saver(self.ui.comboBox_attrTypes.currentText())
+            saver.save_cluster(clust, clust_num, self.spikeset, label)
         self.ui.pushButton_saveLabeledCluster.setEnabled(False)
+
+
+    def action_condDisableSaveCluster(self):
+        # get cluster number
+        clust = self.activeClusterRadioButton().cluster_reference
+        clust_num_h = filter(lambda (i, c): clust is c, enumerate(self.spikeset.clusters))
+        if not clust_num_h == []:
+            clust_num = clust_num_h[0][0]
+        else:
+            raise IndexError('Unable to get cluster index')
+
+        attrname = self.ui.comboBox_attrTypes.currentText()
+        if attrname == '':
+            # default attr option: if either means or members saved, disable
+            if (self.saver_set.get_saver('raw/means').is_saved(clust_num)
+                    or self.saver_set.get_saver('raw/members').is_saved(clust_num)):
+                self.ui.pushButton_saveLabeledCluster.setEnabled(False)
+            else: 
+                self.ui.pushButton_saveLabeledCluster.setEnabled(True)
+        else:
+            saver = self.saver_set.get_saver(attrname)
+            if saver.is_saved(clust_num):
+                self.ui.pushButton_saveLabeledCluster.setEnabled(False)
+            else:
+                self.ui.pushButton_saveLabeledCluster.setEnabled(True)
 
 
     def keyPressEvent(self, e): 

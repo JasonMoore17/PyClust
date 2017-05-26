@@ -98,7 +98,7 @@ class Spikeset:
         self.features.append(features.Feature_Valley(self))
         self.features.append(features.Feature_Trough(self))
 
-        # additional features
+        ## additional features
         #self.features.append(features.Feature_Fwhm(self))
         #self.features.append(features.Feature_P2vt(self))
 
