@@ -5,6 +5,8 @@ import numpy as np
 
 # Feature data is N x C
 
+#temporary
+import matplotlib.pyplot as plt
 
 class Feature:
 
@@ -145,8 +147,34 @@ class Feature_Fwhm(Feature):
             lhm_index = get_hm_index('l')
             rhm_index = get_hm_index('r')
             return (rhm_index - lhm_index) * dt_ms
-        
-        return np.apply_along_axis(calculate_spike, 1, spikeset.spikes)
+
+        for i in range(spikeset.spikes.shape[0]):
+            for c in range(spikeset.spikes.shape[2]):
+                wv = spikeset.spikes[i, :, c]
+                try: 
+                    calculate_spike(wv)
+                except:
+                    print('(i, c): ' + str((i, c)))
+
+        for i, c in [(0, 0)]:
+            wv = spikeset.spikes[i, :, c]
+            max = np.amax(wv)
+            plt.figure()
+            plt.title(str((i, c)) + 'good')
+            plt.plot(range(len(wv)), wv)
+            plt.plot(range(len(wv)), [max for x in range(len(wv))], 'r--')
+            plt.show()
+
+        for i, c in [(7, 0), (12, 0), (14, 2), (14, 3), (16, 1), (16, 3), (19, 2)]:
+            wv = spikeset.spikes[i, :, c]
+            max = np.amax(wv)
+            plt.figure()
+            plt.title(str((i, c)) + 'bad')
+            plt.plot(range(len(wv)), wv)
+            plt.plot(range(len(wv)), [max for x in range(len(wv))], 'r--')
+            plt.show()
+
+       #return np.apply_along_axis(calculate_spike, 1, spikeset.spikes)
 
 
 class Feature_P2vt(Feature):

@@ -56,7 +56,7 @@ def load_data(target_path='', target_file=''):
 
 
 def load_dt_ms(path, fname):
-    with open(os.path.join(path, fname)) as f:
+    with open(os.path.join(ROOT, path, fname)) as f:
         for i, row in enumerate(f):
             if i == 1:
                 return float(row)

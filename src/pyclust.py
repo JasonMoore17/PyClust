@@ -627,6 +627,12 @@ class PyClustMainWindow(QtGui.QMainWindow):
         self.clf_data_saver = None
         self.ui.comboBox_labels.addItems(['', 'Pyramidal', 'Interneuron', 'Junk'])
 
+        # add options in comboBox
+        self.saver_set = datasaver.DataSaverSet(None, None, None, None)
+        self.ui.comboBox_attrTypes.addItem('')
+        for saver in self.saver_set.get_savers():
+            self.ui.comboBox_attrTypes.addItem(saver.get_attr_type())
+
         # Create the undo stack and actions
         self.undoStack = QtGui.QUndoStack(self)
         self.ui.actionUndo = self.undoStack.createUndoAction(self)
@@ -1682,19 +1688,8 @@ class PyClustMainWindow(QtGui.QMainWindow):
         self.updateClusterDetailPlots()
         self.updateFeaturePlot()
 
-        # Load info to keep track of which clusters have been added to DataSaver for ML
         self.saver_set = datasaver.DataSaverSet(self.spikeset, self.ui.label_subjectid.text(),
                 self.ui.label_session.text(), self.ui.label_fname.text())
-
-        # conditionally disable save-labeled-cluster button
-        clust_num_h = filter(lambda (i, c): self.activeClusterRadioButton().cluster_reference
-                                            is c, enumerate(self.spikeset.clusters))
-        clust_num = clust_num_h[0][0] if not clust_num_h == [] else None
-
-        # add options in comboBox
-        self.ui.comboBox_attrTypes.addItem('')
-        for saver in self.saver_set.get_savers():
-            self.ui.comboBox_attrTypes.addItem(saver.get_attr_type())
 
 
     @QtCore.Slot()

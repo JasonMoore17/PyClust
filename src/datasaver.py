@@ -59,7 +59,7 @@ class DataSaver:
         else:
             with open(fpath, 'w') as f:
                 np.savetxt(f, [[ss.dt_ms]], header='dt_ms')
-                np.savetxt(f, rows, fmt='%g', delimiter=',', header='label,waveform')
+                np.savetxt(f, rows, fmt='%g', delimiter=',', header='label,attributes')
 
         self.saved.add((self.subj, self.sess, self.tt, clust_num))
 
@@ -120,7 +120,7 @@ class DataSaver_ClusterMembers_Features(DataSaver_Features):
 
 
 class DataSaverSet:
-    def __init__(self, ss, subj=None, sess=None, tt=None):
+    def __init__(self, ss=None, subj=None, sess=None, tt=None):
         self.saver_list = []
         self.saver_list.append(DataSaver_ClusterMeans(subj, sess, tt))
         self.saver_list.append(DataSaver_ClusterMembers(subj, sess, tt))

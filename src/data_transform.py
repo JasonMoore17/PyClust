@@ -112,6 +112,9 @@ def io_transform(func, srcroot, dstroot):
             X, y = classifier.load_data(dirpath, fname)
             X_new = func(X)
 
+            dt_ms = classifier.load_dt_ms(dirpath, fname)
+            print('loaded dt_ms: ' + str(dt_ms))
+
             subj_sess = dirpath[(len(ROOT) + 2 + len(srcroot)) :]
             src_fpath = os.path.join(dirpath, fname)
 
@@ -124,20 +127,12 @@ def io_transform(func, srcroot, dstroot):
                 os.makedirs(dst_dirpath)
 
             rows = np.array(map(lambda X_row, y_label: np.roll(np.append(X_row, y_label), 1), X_new, y))
-            with open(os.path.join(dst_dirpath, fname), 'w') as f:
+            with open(os.path.join(dst_dirpath, fname), 'a') as f:
+                np.savetxt(f, np.array([dt_ms]), fmt='%g', delimiter=',', header='dt_ms')
+            with open(os.path.join(dst_dirpath, fname), 'a') as f:
                 np.savetxt(f, rows, fmt='%g', delimiter=',', header='label,attributes')
             
             
 if __name__ == '__main__':
     X, y = classifier.load_data('raw/means')
-    fwhm = calc_fwhm(X)
-    #p2vt = calc_p2vt(X)
-    #nplots = 3
-    #for i in range(nplots):
-    #    plt.figure()
-    #    plt.title('raw')
-    #    plt.plot(range(X.shape[1]), X[-1 - i], 'o')
-    #    plt.plot(range(X.shape[1]) ,[np.amax(X[-1 - i]) / 2. for x in range(X.shape[1])], 'r--')
-    #    print('fwhm: ' + str(fwhm[-1 - i]))
-    #    plt.show()
-
+    io_transform(lambda x: x, 'raw/means', 'identity')
