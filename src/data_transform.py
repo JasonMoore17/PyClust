@@ -8,6 +8,7 @@ import classifier
 import features2
 
 ROOT = classifier.ROOT
+PEAK_INDEX = 17
 
 ##################################################################
 # Data Transformations
@@ -15,10 +16,9 @@ ROOT = classifier.ROOT
 
 # X = NxD matrix of N samples with D attributes
 
-def baseline_to_zero(X):
+def zero_baseline(X):
     def per_row(row):
-        argmax = np.argmax(row)
-        argmin = np.argmin(row[:argmax])
+        argmin = np.argmin(row[:PEAK_INDEX])
         offset = np.mean(row[:argmin])
         return np.array(map(lambda x: x - offset, row))
 
@@ -33,10 +33,15 @@ def normalize(X):
     return np.array(map(lambda row: per_row(row), X))
 
 
+def bsln_norm(X):
+    X_bsln = zero_baseline(X)
+    return normalize(X_bsln)
+
+
 def calc_features(X):
     def per_row(row):
-        peak_index = np.argmax(row)
-        feats = features2.calculate_features(row, peak_index)
+        #peak_index = np.argmax(row)
+        feats = features2.calculate_features(row, peak_index=PEAK_INDEX)
         return np.array(feats)
 
     return np.array(map(lambda row: per_row(row), X))
@@ -71,9 +76,19 @@ def data_transform(func, srcroot, dstroot, header='label,attributes'):
                 np.savetxt(f, np.array([dt_ms]), fmt='%g', delimiter=',', header='dt_ms')
             with open(os.path.join(dst_dirpath, fname), 'a') as f:
                 np.savetxt(f, rows, fmt='%g', delimiter=',', header=header)
-            
+
             
 if __name__ == '__main__':
-    srcroot = 'raw/means'
-    dstroot = 'feats'
-    data_transform(calc_features, srcroot, dstroot, header='label,peak,energy,valley,trough')
+
+    #data_transform(calc_features, 'raw/means', 'feats/means', 
+    #        header='label,peak,energy,valley,trough')
+    #data_transform(bsln_norm, 'raw/means', 'bsln_norm/means')
+    #data_transform(calc_features, 'blsn_norm/means', 'bsln_norm_feats/means', 
+    #        header='label,peak,energy,valley,trough')
+
+    #data_transform(calc_features, 'raw/members', 'feats/members', 
+    #        header='label,peak,energy,valley,trough')
+    data_transform(bsln_norm, 'raw/members', 'bsln_norm/members')
+    data_transform(calc_features, 'blsn_norm/members', 'bsln_norm_feats/members', 
+            header='label,peak,energy,valley,trough')
+
