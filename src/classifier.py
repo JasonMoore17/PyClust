@@ -19,7 +19,7 @@ ROOT = os.path.join(os.path.dirname(__file__), '..', 'data', 'clf_data')
 
 # Load all cluster mean data from PyClust/data/clf_data
 # returns (X, y) where X is n x d matrix of attributes and y is n x 1 vector of labels
-def load_data(target_path='', target_file=''):
+def load_data(target_path='', target_file='', verbose=False):
     data = None
 
     if not target_file == '':
@@ -31,12 +31,16 @@ def load_data(target_path='', target_file=''):
         if target_file == '':
             csvs = filter(lambda f: f.endswith('.csv'), filenames)
             for fname in csvs:
+                src = os.path.join(dirpath, fname)
+
+                if verbose:
+                    print('loading from ' + src)
+
                 if data is None:
-                    data = np.loadtxt(os.path.join(dirpath, fname), delimiter=',', skiprows=2)
+                    data = np.loadtxt(src, delimiter=',', skiprows=2)
                 else:
-                    data = \
-                    np.append(data, np.loadtxt(os.path.join(dirpath, fname), 
-                            delimiter=',', skiprows=2), axis=0)
+                    data = np.append(data, np.loadtxt(src, delimiter=',', skiprows=2), 
+                            axis=0)
         else:
             if target_file in filenames:
                 data = np.loadtxt(os.path.join(dirpath, target_file), delimiter=',', skiprows=2)
@@ -101,8 +105,6 @@ def get_opt_c(X, y, kernel='linear'):
     for c in c_range:
         clf = SVC(C=c, kernel=kernel)
         error = get_cv_error(X, y, clf)
-        #print('c: ', c)
-        #print('error: ', error)
 
         if error < min_error:
             min_error = error
@@ -111,19 +113,52 @@ def get_opt_c(X, y, kernel='linear'):
     return opt_c, min_error
 
 
-if __name__ == '__main__':
+# Compute the error of training classifier 'clf' on training data
+# 'X_train', 'y_train'. Test on samples 'X_test', 'y_test'.
+def get_error(X_test, y_test, clf):
+    y_pred = clf.predict(X_test)
 
-    X, y = load_data('raw/means')
-    #print(np.arange(0, 60, 0.5))
-    #print(double_resolution(X[i], 1.))
-    for i in range(3):
-        max = np.amax(X[i])
-        plt.figure()
-        plt.title('mean')
-        plt.plot(np.arange(0, 60, 0.5), double_resolution(X[i], 1.)[0])
-        plt.plot(np.arange(0, 60, 0.5), [max / 2. for i in range(120)], 'r')
-        plt.show()
-        fwhm = get_fwhm(X[i], 1.)
-        print('fwhm: ' + str(fwhm))
-       
+    # count number of mispredictions
+    n_mispreds = 0.0
+    for i in range(y_test.size):
+        if not y_pred[i] == y_test[i]:
+            n_mispreds += 1.0
+
+    print('misprediction penalty: ' + str(n_mispreds))
+    return n_mispreds / float(y_test.size)
+
+
+if __name__ == '__main__':
+    attrnames = ['raw', 'feats', 'bsln_norm', 'bsln_norm_feats']
+    #attrnames = ['feats']
+    for attrname in attrnames:
+        trainroot = attrname + '/means'
+        testroot = attrname + '/members/Spock'
+        print('--------------------------------------------------------')
+        print('loading training data from ' + trainroot)
+        X_train, y_train = load_data(trainroot)
+        print('loaded: X_train=' + str(X_train.shape) + ' y_train=' + str(y_train.shape))
+        print('loading test data from ' + testroot)
+        X_test, y_test = load_data(testroot)
+        print('loaded: X_test=' + str(X_test.shape) + ' y_test=' + str(y_test.shape))
+        kernels = ['linear', 'rbf']
+        #kernels = ['rbf']
+        for kern in kernels:
+            print('training classifier with *' + kern + '* kernel')
+            print('optimizing clf parameters')
+            opt_c, min_cv_error = get_opt_c(X_train, y_train, kernel=kern)
+            clf = SVC(C=opt_c, kernel=kern)
+            print('fitting training data')
+            clf.fit(X_train, y_train)
+
+            print('min CV error: ' + str(min_cv_error))
+            error = get_error(X_test, y_test, clf)
+            print('Error rate for all classes: ' + str(error))
+            P_indices = np.array(map(lambda y_i: y_i == CLASS_P, y_test))
+            I_indices = np.array(map(lambda y_i: y_i == CLASS_I, y_test))
+            error_p = get_error(X_test[P_indices], y_test[P_indices], clf)
+            error_i = get_error(X_test[I_indices], y_test[I_indices], clf)
+            print('Misprediction rate for P class: ' + str(error_p))
+            print('Misprediction rate for I class: ' + str(error_i))
+            print('')
 
