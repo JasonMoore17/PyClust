@@ -19,7 +19,7 @@ PEAK_INDEX = 17
 def zero_baseline(X):
     def per_row(row):
         argmin = np.argmin(row[:PEAK_INDEX])
-        offset = np.mean(row[:argmin])
+        offset = np.mean(row[:argmin + 1])
         return np.array(map(lambda x: x - offset, row))
 
     return np.array(map(lambda row: per_row(row), X))
@@ -88,7 +88,10 @@ if __name__ == '__main__':
 
     #data_transform(calc_features, 'raw/members', 'feats/members', 
     #        header='label,peak,energy,valley,trough')
-    data_transform(bsln_norm, 'raw/members', 'bsln_norm/members')
-    data_transform(calc_features, 'blsn_norm/members', 'bsln_norm_feats/members', 
-            header='label,peak,energy,valley,trough')
-
+    #data_transform(bsln_norm, 'raw/members', 'bsln_norm/members')
+    #data_transform(bsln_norm, 'raw/means', 'bsln_norm/means')
+    #data_transform(calc_features, 'bsln_norm/means', 'bsln_norm_feats/means', 
+    #        header='label,peak,energy,valley,trough')
+    #data_transform(calc_features, 'bsln_norm/members', 'bsln_norm_feats/members', 
+    #        header='label,peak,energy,valley,trough')
+    
