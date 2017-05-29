@@ -1,12 +1,23 @@
 import numpy as np
 
+def double_resolution(wv, dt_ms):                                               
+    wv_inbetween = []                                                           
+    for i in range(wv.size - 1):                                                
+        wv_inbetween.append((wv[i] + wv[i + 1]) / 2.)                           
+    wv_inbetween.append(wv[-1] + (wv[-1] - wv_inbetween[-1]))                   
+    wv_inbetween = np.array(wv_inbetween)                                       
+    wv_new = np.array([[wv], [wv_inbetween]]).transpose().flatten()             
+    return wv_new, dt_ms / 2.
+
+
 # classic features
 
 def calc_peak(wv, peak_index=None):
     return np.amax(wv)
 
 def calc_energy(wv, peak_index=None):
-    return reduce(lambda x, acc: (x * x) + acc, wv, 0)
+    #return reduce(lambda x, acc: (x * x) + acc, wv, 0)
+    return np.sum(wv * wv)
  
 def calc_valley(wv, peak_index=None):
     if peak_index is None:
@@ -21,7 +32,7 @@ def calc_trough(wv, peak_index=None):
 
  # additional features
 
- def calc_fwhm(wv, dt_ms, peak_index=None):
+def calc_fwhm(wv, dt_ms, peak_index=None):
     if peak_index is None:
         peak_index = np.argmax(wv)
 
@@ -49,9 +60,9 @@ def calc_trough(wv, peak_index=None):
                 return i                                                
         raise IndexError('FWHM could not find index')                   
 
-        lhm_index = get_hm_index('l')                                       
-        rhm_index = get_hm_index('r')                                       
-        return (rhm_index - lhm_index) * dt_ms
+    lhm_index = get_hm_index('l')                                       
+    rhm_index = get_hm_index('r')                                       
+    return (rhm_index - lhm_index) * dt_ms
 
 
 def calc_p2vt(wv, dt_ms, peak_index=None):
@@ -61,3 +72,18 @@ def calc_p2vt(wv, dt_ms, peak_index=None):
     valley_index = np.argmin(wv[peak_index:]) + peak_index
     return (valley_index - peak_index) * dt_ms
 
+
+def calculate_features(wv, peak_index=None, special=False, dt_ms=None):
+    feats = []
+    feats.append(calc_peak(wv, peak_index))
+    feats.append(calc_energy(wv, peak_index))
+    feats.append(calc_valley(wv, peak_index))
+    feats.append(calc_trough(wv, peak_index))
+
+    if special:
+        if dt_ms is None:
+            raise ValueError('calculating special features requires non-None dt_ms')
+        feats.append(calc_fwhm(wv, peak_index))
+        feats.append(calc_p2vt(wv, peak_index))
+
+    return feats

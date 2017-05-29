@@ -1,9 +1,3 @@
-""" 
-    This module handles training data obtained from PyClust.
-    labeled data is stored in a directory tree structure rooted at 
-    PyClust/data/clf_data.
-"""
-
 import os
 import numpy as np
 from sklearn import decomposition
@@ -11,16 +5,17 @@ import matplotlib.pyplot as plt
 from sklearn.svm import SVC
 from sklearn.model_selection import StratifiedKFold
 import features
+import features2
 
 class LoadingError(Exception):
     pass
-
 
 PEAK_INDEX = 17
 CLASS_P = 1
 CLASS_I = 2
 CLASS_J = 3
 ROOT = os.path.join(os.path.dirname(__file__), '..', 'data', 'clf_data')
+
 
 # Load all cluster mean data from PyClust/data/clf_data
 # returns (X, y) where X is n x d matrix of attributes and y is n x 1 vector of labels
@@ -39,8 +34,9 @@ def load_data(target_path='', target_file=''):
                 if data is None:
                     data = np.loadtxt(os.path.join(dirpath, fname), delimiter=',', skiprows=2)
                 else:
-                    data = np.append(data, np.loadtxt(os.path.join(dirpath, fname), delimiter=','),
-                                     axis=0)
+                    data = \
+                    np.append(data, np.loadtxt(os.path.join(dirpath, fname), 
+                            delimiter=',', skiprows=2), axis=0)
         else:
             if target_file in filenames:
                 data = np.loadtxt(os.path.join(dirpath, target_file), delimiter=',', skiprows=2)

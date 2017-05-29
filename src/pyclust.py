@@ -29,6 +29,7 @@ import multiplotwidget
 import boundaries
 
 import datasaver
+import pred_clust_class
 #import features
 
 
@@ -71,9 +72,10 @@ class PyClustMainWindow(QtGui.QMainWindow):
         self.updateWavecutterPlot()
 
         # predict label to save as training data
-        #label_pred = classifier.get_label(self.activeClusterRadioButton().cluster_reference,
-        #                               self.spikeset.dt_ms)
-        #self.ui.comboBox_labels.setCurrentIndex(label_pred)
+        label_pred = pred_clust_class.predict_label(
+                self.activeClusterRadioButton().cluster_reference,
+                self.spikeset.dt_ms)
+        self.ui.comboBox_labels.setCurrentIndex(label_pred)
 
         # conditionally disable save-labeled-cluster button
         self.action_condDisableSaveCluster()
@@ -629,7 +631,7 @@ class PyClustMainWindow(QtGui.QMainWindow):
 
         # add options in comboBox
         self.saver_set = datasaver.DataSaverSet(None, None, None, None)
-        self.ui.comboBox_attrTypes.addItem('')
+        self.ui.comboBox_attrTypes.addItem('all')
         for saver in self.saver_set.get_savers():
             self.ui.comboBox_attrTypes.addItem(saver.get_attr_type())
 
@@ -2315,7 +2317,7 @@ class PyClustMainWindow(QtGui.QMainWindow):
             clust_num = None
         label = self.ui.comboBox_labels.currentIndex()
         cur_attrname = self.ui.comboBox_attrTypes.currentText()
-        if cur_attrname == '':
+        if cur_attrname == 'all':
             saver = self.saver_set.get_saver('raw/means')
             saver.save_cluster(clust, clust_num, self.spikeset, label)
             saver = self.saver_set.get_saver('raw/members')
@@ -2336,7 +2338,7 @@ class PyClustMainWindow(QtGui.QMainWindow):
             raise IndexError('Unable to get cluster index')
 
         attrname = self.ui.comboBox_attrTypes.currentText()
-        if attrname == '':
+        if attrname == 'all':
             # default attr option: if either means or members saved, disable
             if (self.saver_set.get_saver('raw/means').is_saved(clust_num)
                     or self.saver_set.get_saver('raw/members').is_saved(clust_num)):
