@@ -16,7 +16,7 @@ PEAK_INDEX = 17
 
 # X = NxD matrix of N samples with D attributes
 
-def zero_baseline(X):
+def zero_baseline(X, dt_ms=0.025):
     def per_row(row):
         argmin = np.argmin(row[:PEAK_INDEX])
         offset = np.mean(row[:argmin + 1])
@@ -25,7 +25,7 @@ def zero_baseline(X):
     return np.array(map(lambda row: per_row(row), X))
 
 
-def normalize(X):
+def normalize(X, dt_ms=0.025):
     def per_row(row):
         div = np.amax(row)
         return np.array(map(lambda x: x / div, row))
@@ -33,17 +33,25 @@ def normalize(X):
     return np.array(map(lambda row: per_row(row), X))
 
 
-def bsln_norm(X):
+def bsln_norm(X, dt_ms=0.025):
     X_bsln = zero_baseline(X)
     return normalize(X_bsln)
 
 
-def calc_features(X):
+def calc_features(X, dt_ms=0.025):
     def per_row(row):
         #peak_index = np.argmax(row)
         feats = features2.calculate_features(row, peak_index=PEAK_INDEX)
         return np.array(feats)
 
+    return np.array(map(lambda row: per_row(row), X))
+
+
+def calc_feats_naive(X, dt_ms=0.025): 
+    def per_row(row):
+        feats = features2.calc_feats_naive(row, dt_ms)
+        return np.array(feats)
+    
     return np.array(map(lambda row: per_row(row), X))
 
 
@@ -58,9 +66,8 @@ def data_transform(func, srcroot, dstroot, header='label,attributes'):
         for fname in csvs:                                                  
             print('loading from file: ' + os.path.join(dirpath, fname))
             X, y = classifier.load_data(dirpath, fname)
-            X_new = func(X)
-
             dt_ms = classifier.load_dt_ms(dirpath, fname)
+            X_new = func(X, dt_ms=dt_ms)
 
             subj_sess = dirpath[(len(ROOT) + 2 + len(srcroot)) :]
             src_fpath = os.path.join(dirpath, fname)
@@ -70,6 +77,7 @@ def data_transform(func, srcroot, dstroot, header='label,attributes'):
             if not os.path.exists(dst_dirpath):
                 os.makedirs(dst_dirpath)
 
+            print(y)
             rows = np.array(map(lambda X_i, y_i: np.append(y_i, X_i), X_new, y))
 
             with open(os.path.join(dst_dirpath, fname), 'a') as f:
@@ -79,6 +87,13 @@ def data_transform(func, srcroot, dstroot, header='label,attributes'):
 
             
 if __name__ == '__main__':
+    #def identity(X, dt_ms):
+    #    return X
+    #data_transform(identity, 'raw/means', 'identity/means')
+    data_transform(calc_feats_naive, 'raw/means', 'feats_naive/means', 
+            header='label,peak,energy,valley,trough,fwhm,p2vt')
+    data_transform(calc_feats_naive, 'raw/members', 'feats_naive/members',
+            header='label,peak,energy,valley,trough,fwhm,p2vt')
 
     #data_transform(calc_features, 'raw/means', 'feats/means', 
     #        header='label,peak,energy,valley,trough')

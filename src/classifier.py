@@ -4,6 +4,7 @@ from sklearn import decomposition
 import matplotlib.pyplot as plt
 from sklearn.svm import SVC
 from sklearn.model_selection import StratifiedKFold
+
 import features
 import features2
 
@@ -15,6 +16,42 @@ CLASS_P = 1
 CLASS_I = 2
 CLASS_J = 3
 ROOT = os.path.join(os.path.dirname(__file__), '..', 'data', 'clf_data')
+
+# Get random single instance of each P and I from each file
+def load_random_test(target_path=''):
+    loaded = None
+    data = None
+    for dirpath, dirnames, filenames in os.walk(os.path.join(ROOT, target_path)):
+        # load all csvs under target_path
+        csvs = filter(lambda f: f.endswith('.csv'), filenames)
+        for fname in csvs:
+            src = os.path.join(dirpath, fname)
+            if loaded is None:
+                loaded = np.loadtxt(src, delimiter=',', skiprows=2)
+            else:
+                loaded = np.append(loaded, np.loadtxt(src, delimiter=',', skiprows=2), 
+                        axis=0)
+
+        # add 1 random P row and 1 random I row
+        p_indices = np.array(map(lambda y_i: y_i == CLASS_P, y))
+        i_indices = np.array(map(lambda y_i: y_i == CLASS_I, y))
+        loaded_p = loaded[p_indices]
+        loaded_i = loaded[i_indices]
+        if data is None:
+            data = np.append(loaded_p[np.random.randint(0, loaded_p.shape[0]),
+                    loaded_i[np.random.randint(0, loaded_i.shape[0]), axis=0)
+        else:
+            to_append = np.append(loaded_p[np.random.randint(0, loaded_p.shape[0]),
+                    loaded_i[np.random.randint(0, loaded_i.shape[0]), axis=0)
+            data = np.append(data, to_append, axis=0)
+
+    if data is None:
+        raise LoadingError('Unable to load data with parameters ' + str((target_path, target_file)))
+    else:
+        X = np.delete(data, 0, axis=1)
+        y = data[:,0].astype(int)
+
+    return X, y
 
 
 # Load all cluster mean data from PyClust/data/clf_data
@@ -113,6 +150,42 @@ def get_opt_c(X, y, kernel='linear'):
     return opt_c, min_error
 
 
+def get_opt_params(X, y, kernel):
+    c_range = [10.0 ** i for i in range(-5, 5)]
+    gamma_range = [10.0 ** i for i in range(-5, 5)]
+    gamma_range.append('auto')
+
+    try:
+        min_error = float('inf')
+    except:
+        min_error = 1e30000
+
+    if kernel == 'linear':
+        for c in c_range:
+            clf = SVC(C=c, kernel=kernel)
+            error = get_cv_error(X, y, clf)
+
+            if error < min_error:
+                min_error = error
+                opt_c = c
+
+        return opt_c, 'auto', min_error
+
+    elif kernel in ['poly', 'rbf', 'sigmoid']:
+        for (c, g) in [(x, y) for x in c_range for y in gamma_range]:
+            clf = SVC(C=c, kernel=kernel, gamma=g)
+            error = get_cv_error(X, y, clf)
+            if error < min_error:
+                min_error = error
+                opt_c = c
+                opt_gamma = g
+
+        return opt_c, opt_g, min_error
+
+    else:
+        raise ValueError('Unknown kernel used')
+
+
 # Compute the error of training classifier 'clf' on training data
 # 'X_train', 'y_train'. Test on samples 'X_test', 'y_test'.
 def get_error(X_test, y_test, clf):
@@ -129,11 +202,12 @@ def get_error(X_test, y_test, clf):
 
 
 if __name__ == '__main__':
-    attrnames = ['raw', 'feats', 'bsln_norm', 'bsln_norm_feats']
+    #attrnames = ['raw', 'bsln_norm', 'feats', 'bsln_norm_feats']
     #attrnames = ['feats']
+    attrnames = ['raw', 'bsln_norm']
     for attrname in attrnames:
         trainroot = attrname + '/means'
-        testroot = attrname + '/members/Spock'
+        testroot = attrname + '/members/Jackson'
         print('--------------------------------------------------------')
         print('loading training data from ' + trainroot)
         X_train, y_train = load_data(trainroot)
@@ -141,12 +215,16 @@ if __name__ == '__main__':
         print('loading test data from ' + testroot)
         X_test, y_test = load_data(testroot)
         print('loaded: X_test=' + str(X_test.shape) + ' y_test=' + str(y_test.shape))
-        kernels = ['linear', 'rbf']
-        #kernels = ['rbf']
+        P_indices = np.array(map(lambda y_i: y_i == CLASS_P, y_test))
+        I_indices = np.array(map(lambda y_i: y_i == CLASS_I, y_test))
+        #kernels = ['linear', 'poly']
+        kernels = ['poly', 'sigmoid']
         for kern in kernels:
             print('training classifier with *' + kern + '* kernel')
             print('optimizing clf parameters')
+            #opt_c, opt_gamma, min_cv_error = get_opt_params(X_train, y_train, kernel=kern)
             opt_c, min_cv_error = get_opt_c(X_train, y_train, kernel=kern)
+            #clf = SVC(C=opt_c, kernel=kern, gamma=opt_gamma)
             clf = SVC(C=opt_c, kernel=kern)
             print('fitting training data')
             clf.fit(X_train, y_train)
@@ -154,8 +232,6 @@ if __name__ == '__main__':
             print('min CV error: ' + str(min_cv_error))
             error = get_error(X_test, y_test, clf)
             print('Error rate for all classes: ' + str(error))
-            P_indices = np.array(map(lambda y_i: y_i == CLASS_P, y_test))
-            I_indices = np.array(map(lambda y_i: y_i == CLASS_I, y_test))
             error_p = get_error(X_test[P_indices], y_test[P_indices], clf)
             error_i = get_error(X_test[I_indices], y_test[I_indices], clf)
             print('Misprediction rate for P class: ' + str(error_p))

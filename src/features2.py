@@ -1,5 +1,7 @@
 import numpy as np
 
+PEAK_INDEX = 17
+
 def double_resolution(wv, dt_ms):                                               
     wv_inbetween = []                                                           
     for i in range(wv.size - 1):                                                
@@ -73,6 +75,26 @@ def calc_p2vt(wv, dt_ms, peak_index=None):
     return (valley_index - peak_index) * dt_ms
 
 
+# naive, because noisy cases could result in unpredictable values
+def calc_fwhm_naive(wv, dt_ms):
+    wv, dt_ms = double_resolution(wv, dt_ms)
+    wv, dt_ms = double_resolution(wv, dt_ms)
+    argmax = np.argmax(wv)
+    amax = wv[argmax]
+    vdist = np.vectorize(lambda x: abs(amax / 2. - x))
+    argLhm = np.argmin(vdist(wv[:argmax + 1]))
+    argRhm = np.argmin(vdist(wv[argmax:])) + argmax
+    return (argRhm - argLhm) * dt_ms
+
+
+def calc_p2vt_naive(wv, dt_ms):
+    wv, dt_ms = double_resolution(wv, dt_ms)
+    wv, dt_ms = double_resolution(wv, dt_ms)
+    peakIndex = np.argmax(wv)
+    valleyIndex = np.argmin(wv[peakIndex:]) + peakIndex
+    return (valleyIndex - peakIndex) * dt_ms		
+
+	
 def calculate_features(wv, peak_index=None, special=False, dt_ms=None):
     feats = []
     feats.append(calc_peak(wv, peak_index))
@@ -87,3 +109,16 @@ def calculate_features(wv, peak_index=None, special=False, dt_ms=None):
         feats.append(calc_p2vt(wv, peak_index))
 
     return feats
+
+
+def calc_feats_naive(wv, dt_ms):
+    feats = []
+    feats.append(calc_peak(wv, PEAK_INDEX))
+    feats.append(calc_energy(wv, PEAK_INDEX))
+    feats.append(calc_valley(wv, PEAK_INDEX))
+    feats.append(calc_trough(wv, PEAK_INDEX))
+    feats.append(calc_fwhm_naive(wv, dt_ms))
+    feats.append(calc_p2vt_naive(wv, dt_ms))
+    return feats
+
+
