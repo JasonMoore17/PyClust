@@ -70,14 +70,11 @@ def data_transform(func, srcroot, dstroot, header='label,attributes'):
             X_new = func(X, dt_ms=dt_ms)
 
             subj_sess = dirpath[(len(ROOT) + 2 + len(srcroot)) :]
-            src_fpath = os.path.join(dirpath, fname)
-
             dst_dirpath = os.path.join(ROOT, dstroot, subj_sess)
             print('saving to directory: ' + dst_dirpath)
             if not os.path.exists(dst_dirpath):
                 os.makedirs(dst_dirpath)
 
-            print(y)
             rows = np.array(map(lambda X_i, y_i: np.append(y_i, X_i), X_new, y))
 
             with open(os.path.join(dst_dirpath, fname), 'a') as f:
@@ -85,28 +82,56 @@ def data_transform(func, srcroot, dstroot, header='label,attributes'):
             with open(os.path.join(dst_dirpath, fname), 'a') as f:
                 np.savetxt(f, rows, fmt='%g', delimiter=',', header=header)
 
-            
+
+def get_header(src):
+	fp = open(src)
+	for i, line in enumerate(fp):
+		if i == 2:
+			return line	
+
+
+def save_test(srcroot, dstroot):
+	data = None
+	for dirpath, dirnames, filenames in os.walk(os.path.join(ROOT, srcroot)):
+		csvs = filter(lambda f: f.endswith('.csv'), filenames)              
+		for fname in csvs:                                                  
+			src = os.path.join(dirpath, fname)                                  
+			print('loading from file: ' + src)
+			data = np.loadtxt(src, delimiter=',', skiprows=2)                 
+			y = data[:, 0].astype(int)
+			dt_ms = classifier.load_dt_ms(dirpath, fname)
+			p_indices = np.array(map(lambda y_i: y_i == classifier.CLASS_P, y))
+			i_indices = np.array(map(lambda y_i: y_i == classifier.CLASS_I, y))
+
+			data_p = data[p_indices]
+			data_i = data[i_indices]
+			if data_p.shape[0] <= 0 and data_i.shape[0] <= 0:
+				continue
+
+			subj_sess = dirpath[(len(ROOT) + 2 + len(srcroot)) :]
+			dst_dirpath = os.path.join(ROOT, dstroot, subj_sess)
+
+			if not os.path.exists(dst_dirpath):
+				os.makedirs(dst_dirpath)
+
+			print('saving to directory: ' + dst_dirpath)
+			if not os.path.exists(os.path.join(dst_dirpath, fname)):
+				# save dt_ms
+				with open(os.path.join(dst_dirpath, fname), 'w') as f:
+					np.savetxt(f, np.array([dt_ms]), fmt='%g', delimiter=',', header='dt_ms')
+
+			# save random P and I row from file
+			header = get_header(src)
+			with open(os.path.join(dst_dirpath, fname), 'a') as f:
+				if data_p.shape[0] > 0:                                           
+					row = np.array([data_p[np.random.randint(0, data_p.shape[0])]])
+					np.savetxt(f, row, fmt='%g', delimiter=',', header=header)
+				if data_i.shape[0] > 0:
+					row = np.array([data_i[np.random.randint(0, data_i.shape[0])]])
+					np.savetxt(f, row, fmt='%g', delimiter=',', header=header)
+
+
 if __name__ == '__main__':
-    #def identity(X, dt_ms):
-    #    return X
-    #data_transform(identity, 'raw/means', 'identity/means')
-    data_transform(calc_feats_naive, 'raw/means', 'feats_naive/means', 
-            header='label,peak,energy,valley,trough,fwhm,p2vt')
-    data_transform(calc_feats_naive, 'raw/members', 'feats_naive/members',
-            header='label,peak,energy,valley,trough,fwhm,p2vt')
+	save_test('raw/members', 'test/raw/members')
+	save_test('bsln_norm/members', 'test/bsln_norm/members')
 
-    #data_transform(calc_features, 'raw/means', 'feats/means', 
-    #        header='label,peak,energy,valley,trough')
-    #data_transform(bsln_norm, 'raw/means', 'bsln_norm/means')
-    #data_transform(calc_features, 'blsn_norm/means', 'bsln_norm_feats/means', 
-    #        header='label,peak,energy,valley,trough')
-
-    #data_transform(calc_features, 'raw/members', 'feats/members', 
-    #        header='label,peak,energy,valley,trough')
-    #data_transform(bsln_norm, 'raw/members', 'bsln_norm/members')
-    #data_transform(bsln_norm, 'raw/means', 'bsln_norm/means')
-    #data_transform(calc_features, 'bsln_norm/means', 'bsln_norm_feats/means', 
-    #        header='label,peak,energy,valley,trough')
-    #data_transform(calc_features, 'bsln_norm/members', 'bsln_norm_feats/members', 
-    #        header='label,peak,energy,valley,trough')
-    
