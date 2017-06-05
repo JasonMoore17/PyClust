@@ -137,6 +137,11 @@ def save_test(srcroot, dstroot):
 
 
 if __name__ == '__main__':
-	save_test('raw/members', 'test/raw/members')
-	save_test('bsln_norm/members', 'test/bsln_norm/members')
+	#save_test('raw/members', 'test/raw/members')
+	#save_test('bsln_norm/members', 'test/bsln_norm/members')
 
+    for i in range(10):
+        for attrname in ['raw', 'bsln_norm']:
+            srcroot = os.path.join(attrname, 'members')
+            dstroot = os.path.join('test' + str(i), attrname, 'members')
+            save_test(srcroot, dstroot)

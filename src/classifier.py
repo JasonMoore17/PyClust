@@ -93,9 +93,14 @@ def load_data(target_path='', target_file='', verbose=False):
 
                 if data is None:
                     data = np.loadtxt(src, delimiter=',', skiprows=2)
+                    if data.shape == (0,):
+                        data = None
                 else:
-                    data = np.append(data, np.loadtxt(src, delimiter=',', skiprows=2), 
-                            axis=0)
+                    append_data = np.loadtxt(src, delimiter=',', skiprows=2)
+                    if append_data.ndim <= 1:
+                        append_data = np.array([append_data])
+
+                    data = np.append(data, append_data, axis=0)
         else:
             if target_file in filenames:
                 data = np.loadtxt(os.path.join(dirpath, target_file), delimiter=',', skiprows=2)
@@ -218,31 +223,14 @@ def get_error(X_test, y_test, clf):
     return n_mispreds / float(y_test.size)
 
 
-def get_test_error(clf, dirpath=os.path.join(ROOT,'raw/members')):
-    n_iters = 10
-    err_all = 0.
-    err_p = 0.
-    err_i = 0.
-    for i in range(n_iters):
-        X_test, y_test = load_random_test(dirpath)
-        err_all += get_error(X_test, y_test, clf)
-
+def get_test_error(clf, dirpath):
+    X_test, y_test = load_data(dirpath)
+    err_all = get_error(X_test, y_test, clf)
     p_indices = np.array(map(lambda y_i: y_i == CLASS_P, y_test))
     i_indices = np.array(map(lambda y_i: y_i == CLASS_I, y_test))
-
-    X_test_p = X_test[p_indices]
-    y_test_p = y_test[p_indices]
-    for i in range(n_iters):
-        X_test, y_test = load_random_test(dirpath)
-        err_p += get_error(X_test, y_test, clf)
-
-    X_test_i = X_test[i_indices]
-    y_test_i = y_test[i_indices]
-    for i in range(n_iters):
-        X_test, y_test = load_random_test(dirpath)
-        err_p += get_error(X_test, y_test, clf)
-
-    return err_all / float(n_iters), err_p / float(n_iters), err_i / float(n_iters)
+    err_p = get_error(X_test[p_indices], y_test[p_indices], clf)
+    err_i = get_error(X_test[i_indices], y_test[i_indices], clf)
+    return err_all, err_p, err_i
 
 
 if __name__ == '__main__':
@@ -251,7 +239,7 @@ if __name__ == '__main__':
     attrnames = ['raw', 'bsln_norm']
     for attrname in attrnames:
         trainroot = attrname + '/means'
-        testroot = attrname + '/members/Queue'
+        testroot = os.path.join('test', attrname, 'members')
         print('--------------------------------------------------------')
         print('loading training data from ' + trainroot)
         X_train, y_train = load_data(trainroot)
@@ -265,8 +253,6 @@ if __name__ == '__main__':
             clf = SVC(C=opt_c, kernel=kern)
             print('fitting training data')
             clf.fit(X_train, y_train)
-            print('loading test data from ' + testroot)
-            print('min CV error: ' + str(min_cv_error))
             err_all, err_p, err_i = get_test_error(clf, testroot)
             print('Error rate for all classes: ' + str(err_all))
             print('Misprediction rate for P class: ' + str(err_p))
