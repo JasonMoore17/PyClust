@@ -17,7 +17,7 @@ CLASS_I = 2
 CLASS_J = 3
 ROOT = os.path.join(os.path.dirname(__file__), '..', 'data', 'clf_data')
 
-# Get random single instance of each P and I from each file
+# Get random single instance of P and I from each file
 def load_random_test(target_path=''):
     loaded = None
     data = None
@@ -26,24 +26,42 @@ def load_random_test(target_path=''):
         csvs = filter(lambda f: f.endswith('.csv'), filenames)
         for fname in csvs:
             src = os.path.join(dirpath, fname)
-            if loaded is None:
-                loaded = np.loadtxt(src, delimiter=',', skiprows=2)
-            else:
-                loaded = np.append(loaded, np.loadtxt(src, delimiter=',', skiprows=2), 
-                        axis=0)
+            loaded = np.loadtxt(src, delimiter=',', skiprows=2)
 
-        # add 1 random P row and 1 random I row
-        p_indices = np.array(map(lambda y_i: y_i == CLASS_P, y))
-        i_indices = np.array(map(lambda y_i: y_i == CLASS_I, y))
-        loaded_p = loaded[p_indices]
-        loaded_i = loaded[i_indices]
-        if data is None:
-            data = np.append(loaded_p[np.random.randint(0, loaded_p.shape[0]),
-                    loaded_i[np.random.randint(0, loaded_i.shape[0]), axis=0)
-        else:
-            to_append = np.append(loaded_p[np.random.randint(0, loaded_p.shape[0]),
-                    loaded_i[np.random.randint(0, loaded_i.shape[0]), axis=0)
-            data = np.append(data, to_append, axis=0)
+            # add 1 random P row and 1 random I row
+            loaded_y = loaded[:, 0].astype(int)
+            p_indices = np.array(map(lambda y_i: y_i == CLASS_P, loaded_y))
+            i_indices = np.array(map(lambda y_i: y_i == CLASS_I, loaded_y))
+            loaded_p = loaded[p_indices]
+            loaded_i = loaded[i_indices]
+
+            # this check is for runtime performance
+            if loaded_p.shape[0] <= 0 and loaded_i.shape[0] <= 0:
+                continue
+            if loaded_p.shape[0] > 0:
+                rand_p_row = np.array([loaded_p[np.random.randint(0, loaded_p.shape[0])]])
+            else:
+                rand_p_row = None
+            if loaded_i.shape[0] > 0:
+                rand_i_row = np.array([loaded_i[np.random.randint(0, loaded_i.shape[0])]])
+            else:
+                rand_i_row = None
+
+            if data is None:
+                if rand_p_row is not None and rand_i_row is not None:
+                    data = np.append(rand_p_row, rand_i_row, axis=0)
+                elif rand_p_row is not None:
+                    data = rand_p_row
+                else:
+                    data = rand_i_row
+            else:
+                if rand_p_row is not None and rand_i_row is not None:
+                    to_append = np.append(rand_p_row, rand_i_row, axis=0)
+                elif rand_p_row is not None:
+                    to_append = rand_p_row
+                else:
+                    to_append = rand_i_row
+                data = np.append(data, to_append, axis=0)
 
     if data is None:
         raise LoadingError('Unable to load data with parameters ' + str((target_path, target_file)))
@@ -197,8 +215,34 @@ def get_error(X_test, y_test, clf):
         if not y_pred[i] == y_test[i]:
             n_mispreds += 1.0
 
-    print('misprediction penalty: ' + str(n_mispreds))
     return n_mispreds / float(y_test.size)
+
+
+def get_test_error(clf, dirpath=os.path.join(ROOT,'raw/members')):
+    n_iters = 10
+    err_all = 0.
+    err_p = 0.
+    err_i = 0.
+    for i in range(n_iters):
+        X_test, y_test = load_random_test(dirpath)
+        err_all += get_error(X_test, y_test, clf)
+
+    p_indices = np.array(map(lambda y_i: y_i == CLASS_P, y_test))
+    i_indices = np.array(map(lambda y_i: y_i == CLASS_I, y_test))
+
+    X_test_p = X_test[p_indices]
+    y_test_p = y_test[p_indices]
+    for i in range(n_iters):
+        X_test, y_test = load_random_test(dirpath)
+        err_p += get_error(X_test, y_test, clf)
+
+    X_test_i = X_test[i_indices]
+    y_test_i = y_test[i_indices]
+    for i in range(n_iters):
+        X_test, y_test = load_random_test(dirpath)
+        err_p += get_error(X_test, y_test, clf)
+
+    return err_all / float(n_iters), err_p / float(n_iters), err_i / float(n_iters)
 
 
 if __name__ == '__main__':
@@ -207,18 +251,11 @@ if __name__ == '__main__':
     attrnames = ['raw', 'bsln_norm']
     for attrname in attrnames:
         trainroot = attrname + '/means'
-        testroot = attrname + '/members/Jackson'
+        testroot = attrname + '/members/Queue'
         print('--------------------------------------------------------')
         print('loading training data from ' + trainroot)
         X_train, y_train = load_data(trainroot)
-        print('loaded: X_train=' + str(X_train.shape) + ' y_train=' + str(y_train.shape))
-        print('loading test data from ' + testroot)
-        X_test, y_test = load_data(testroot)
-        print('loaded: X_test=' + str(X_test.shape) + ' y_test=' + str(y_test.shape))
-        P_indices = np.array(map(lambda y_i: y_i == CLASS_P, y_test))
-        I_indices = np.array(map(lambda y_i: y_i == CLASS_I, y_test))
-        #kernels = ['linear', 'poly']
-        kernels = ['poly', 'sigmoid']
+        kernels = ['linear', 'rbf', 'poly', 'sigmoid']
         for kern in kernels:
             print('training classifier with *' + kern + '* kernel')
             print('optimizing clf parameters')
@@ -228,13 +265,11 @@ if __name__ == '__main__':
             clf = SVC(C=opt_c, kernel=kern)
             print('fitting training data')
             clf.fit(X_train, y_train)
-
+            print('loading test data from ' + testroot)
             print('min CV error: ' + str(min_cv_error))
-            error = get_error(X_test, y_test, clf)
-            print('Error rate for all classes: ' + str(error))
-            error_p = get_error(X_test[P_indices], y_test[P_indices], clf)
-            error_i = get_error(X_test[I_indices], y_test[I_indices], clf)
-            print('Misprediction rate for P class: ' + str(error_p))
-            print('Misprediction rate for I class: ' + str(error_i))
+            err_all, err_p, err_i = get_test_error(clf, testroot)
+            print('Error rate for all classes: ' + str(err_all))
+            print('Misprediction rate for P class: ' + str(err_p))
+            print('Misprediction rate for I class: ' + str(err_i))
             print('')
 
