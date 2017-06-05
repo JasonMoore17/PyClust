@@ -91,44 +91,49 @@ def get_header(src):
 
 
 def save_test(srcroot, dstroot):
-	data = None
-	for dirpath, dirnames, filenames in os.walk(os.path.join(ROOT, srcroot)):
-		csvs = filter(lambda f: f.endswith('.csv'), filenames)              
-		for fname in csvs:                                                  
-			src = os.path.join(dirpath, fname)                                  
-			print('loading from file: ' + src)
-			data = np.loadtxt(src, delimiter=',', skiprows=2)                 
-			y = data[:, 0].astype(int)
-			dt_ms = classifier.load_dt_ms(dirpath, fname)
-			p_indices = np.array(map(lambda y_i: y_i == classifier.CLASS_P, y))
-			i_indices = np.array(map(lambda y_i: y_i == classifier.CLASS_I, y))
+    for dirpath, dirnames, filenames in os.walk(os.path.join(ROOT, srcroot)):
+        csvs = filter(lambda f: f.endswith('.csv'), filenames)              
+        for fname in csvs:                                                  
+            src = os.path.join(dirpath, fname)                                  
+            print('loading from file: ' + src)
+            data = np.loadtxt(src, delimiter=',', skiprows=2)                 
+            y = data[:, 0].astype(int)
+            dt_ms = classifier.load_dt_ms(dirpath, fname)
+            p_indices = np.array(map(lambda y_i: y_i == classifier.CLASS_P, y))
+            i_indices = np.array(map(lambda y_i: y_i == classifier.CLASS_I, y))
 
-			data_p = data[p_indices]
-			data_i = data[i_indices]
-			if data_p.shape[0] <= 0 and data_i.shape[0] <= 0:
-				continue
+            data_p = data[p_indices]
+            data_i = data[i_indices]
+            if data_p.shape[0] <= 0 and data_i.shape[0] <= 0:
+                continue
 
-			subj_sess = dirpath[(len(ROOT) + 2 + len(srcroot)) :]
-			dst_dirpath = os.path.join(ROOT, dstroot, subj_sess)
+            subj_sess = dirpath[(len(ROOT) + 2 + len(srcroot)) :]
+            dst_dirpath = os.path.join(ROOT, dstroot, subj_sess)
 
-			if not os.path.exists(dst_dirpath):
-				os.makedirs(dst_dirpath)
+            if not os.path.exists(dst_dirpath):
+                os.makedirs(dst_dirpath)
 
-			print('saving to directory: ' + dst_dirpath)
-			if not os.path.exists(os.path.join(dst_dirpath, fname)):
-				# save dt_ms
-				with open(os.path.join(dst_dirpath, fname), 'w') as f:
-					np.savetxt(f, np.array([dt_ms]), fmt='%g', delimiter=',', header='dt_ms')
+            print('saving to directory: ' + dst_dirpath)
+            if not os.path.exists(os.path.join(dst_dirpath, fname)):
+                # save dt_ms
+                with open(os.path.join(dst_dirpath, fname), 'w') as f:
+                    np.savetxt(f, np.array([dt_ms]), fmt='%g', delimiter=',', header='dt_ms')
 
 			# save random P and I row from file
-			header = get_header(src)
-			with open(os.path.join(dst_dirpath, fname), 'a') as f:
-				if data_p.shape[0] > 0:                                           
-					row = np.array([data_p[np.random.randint(0, data_p.shape[0])]])
-					np.savetxt(f, row, fmt='%g', delimiter=',', header=header)
-				if data_i.shape[0] > 0:
+            header = get_header(src)
+            with open(os.path.join(dst_dirpath, fname), 'a') as f:
+                f.write(header)
+                if data_p.shape[0] > 0 and data_i.shape[0] > 0:                                           
+                    row_p = np.array([data_p[np.random.randint(0, data_p.shape[0])]])
+                    row_i = np.array([data_i[np.random.randint(0, data_i.shape[0])]])
+                    rows = np.append(row_p, row_i, axis=0)
+                    np.savetxt(f, rows, fmt='%g', delimiter=',')
+                elif data_p.shape[0] > 0:
+                    row = np.array([data_p[np.random.randint(0, data_p.shape[0])]])
+                    np.savetxt(f, row, fmt='%g', delimiter=',')
+                elif data_i.shape[0] > 0:
 					row = np.array([data_i[np.random.randint(0, data_i.shape[0])]])
-					np.savetxt(f, row, fmt='%g', delimiter=',', header=header)
+					np.savetxt(f, row, fmt='%g', delimiter=',')
 
 
 if __name__ == '__main__':
