@@ -195,17 +195,25 @@ def get_opt_clf():
 
     clf = SVC(C=opt_c, kernel=opt_kern)
     clf.fit(X_train, y_train)
+    print('clf kernel: ' + opt_kern)
+    print('clf C: ' + str(opt_c))
+    print('clf cv error: ' + str(min_cv_error))
     return clf
 
 
-# since there are C channels for each spike, we take a vote get get its class
+# since there are C channels for each spike, we take a vote to get its class
 def get_indices(clf, spikes):
+    def normalize_spike(wv):
+        amax = np.amax(wv)
+        return np.array(map(lambda x: x / amax, wv))
+
     N = spikes.shape[0]
     C = spikes.shape[2]
     p_counts = np.zeros((N, C))
     i_counts = np.zeros((N, C))
     for c in range(C):
         X = spikes[:, :, c]
+        X = np.array(map(lambda wv: normalize_spike(wv), X))
         y_pred = clf.predict(X)
         for n in range(N):
             if y_pred[n] == CLASS_P:
