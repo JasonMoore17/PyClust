@@ -16,8 +16,6 @@ rcParams['font.size'] = 9
 
 import boundaries  # Need to know how to create boundaries
 
-#AUTOZOOM_FACTOR = 0.25
-
 class ProjectionWidget(Canvas):
 
     #__pyqtSignals__ = ("featureRedrawRequired()",
@@ -72,6 +70,7 @@ class ProjectionWidget(Canvas):
         self.autozoom_mode = False
         self.autozoom_factor = None
         self.autozoom_limits = np.array([None for i in range(2)], dtype=object)
+
 
     @Slot(bool)
     def setShowUnclustered(self, show):

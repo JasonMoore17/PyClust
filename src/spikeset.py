@@ -23,6 +23,7 @@ import features
 import boundaries
 import unique_colors
 import spikeset_io
+import classifier
 
 # pickle needs this to load the saved bounds
 #from boundaries import BoundaryPolygon2D
@@ -51,6 +52,11 @@ class Spikeset:
         self.session = session
         self.T = (max(self.time) - min(self.time)) / 1e6
         self.clusters = []
+
+        # classification
+        self.filter_class = 0  # default all
+        self.p_indices, self.i_indices = 
+                classifier.get_indices(classifier.get_opt_classifier, self.spikes)
 
     def saveFeatures(self, filename):
         """Save feature info (PCA coefficients) to file."""

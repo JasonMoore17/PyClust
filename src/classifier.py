@@ -17,60 +17,6 @@ CLASS_I = 2
 CLASS_J = 3
 ROOT = os.path.join(os.path.dirname(__file__), '..', 'data', 'clf_data')
 
-# Get random single instance of P and I from each file
-def load_random_test(target_path=''):
-    loaded = None
-    data = None
-    for dirpath, dirnames, filenames in os.walk(os.path.join(ROOT, target_path)):
-        # load all csvs under target_path
-        csvs = filter(lambda f: f.endswith('.csv'), filenames)
-        for fname in csvs:
-            src = os.path.join(dirpath, fname)
-            loaded = np.loadtxt(src, delimiter=',', skiprows=2)
-
-            # add 1 random P row and 1 random I row
-            loaded_y = loaded[:, 0].astype(int)
-            p_indices = np.array(map(lambda y_i: y_i == CLASS_P, loaded_y))
-            i_indices = np.array(map(lambda y_i: y_i == CLASS_I, loaded_y))
-            loaded_p = loaded[p_indices]
-            loaded_i = loaded[i_indices]
-
-            # this check is for runtime performance
-            if loaded_p.shape[0] <= 0 and loaded_i.shape[0] <= 0:
-                continue
-            if loaded_p.shape[0] > 0:
-                rand_p_row = np.array([loaded_p[np.random.randint(0, loaded_p.shape[0])]])
-            else:
-                rand_p_row = None
-            if loaded_i.shape[0] > 0:
-                rand_i_row = np.array([loaded_i[np.random.randint(0, loaded_i.shape[0])]])
-            else:
-                rand_i_row = None
-
-            if data is None:
-                if rand_p_row is not None and rand_i_row is not None:
-                    data = np.append(rand_p_row, rand_i_row, axis=0)
-                elif rand_p_row is not None:
-                    data = rand_p_row
-                else:
-                    data = rand_i_row
-            else:
-                if rand_p_row is not None and rand_i_row is not None:
-                    to_append = np.append(rand_p_row, rand_i_row, axis=0)
-                elif rand_p_row is not None:
-                    to_append = rand_p_row
-                else:
-                    to_append = rand_i_row
-                data = np.append(data, to_append, axis=0)
-
-    if data is None:
-        raise LoadingError('Unable to load data with parameters ' + str((target_path, target_file)))
-    else:
-        X = np.delete(data, 0, axis=1)
-        y = data[:,0].astype(int)
-
-    return X, y
-
 
 # Load all cluster mean data from PyClust/data/clf_data
 # returns (X, y) where X is n x d matrix of attributes and y is n x 1 vector of labels
@@ -233,6 +179,52 @@ def get_test_error(clf, dirpath):
     return err_all, err_p, err_i
 
 
+def get_opt_clf():
+    attrname = 'bsln_norm'
+    trainroot = attrname + '/means'
+    testroot = os.path.join('test', attrname, 'members')
+    X_train, y_train = load_data(trainroot)
+    kernels = ['linear', 'rbf', 'poly', 'sigmoid']
+    min_cv_error = float('inf')
+    for kern in kernels:
+        opt_c_tmp, min_cv_error_tmp = get_opt_c(X_train, y_train, kernel=kern)
+        if min_cv_error_tmp < min_cv_error:
+            min_cv_error = min_cv_error_tmp
+            opt_c = opt_c_tmp
+            opt_kern = kern
+
+    clf = SVC(C=opt_c, kernel=opt_kern)
+    clf.fit(X_train, y_train)
+    return clf
+
+
+# since there are C channels for each spike, we take a vote get get its class
+def get_class_indices(clf, spikes):
+    N = spikes.shape[0]
+    C = spikes.shape[2]
+    p_counts = np.zeros((N, C))
+    i_counts = np.zeros((N, C))
+    for c in range(C):
+        X = spikes[:, :, c]
+        y_pred = clf.predict(X)
+        for n in range(N):
+            if y_pred[n] == CLASS_P:
+                p_counts[n, c] += 1
+            elif y_pred[n] == CLASS_I:
+                i_counts[n, c] += 1
+            else:
+                raise IndexError
+    p_votes_by_chan = np.sum(p_counts, axis=0)
+    i_votes_by_chan = np.sum(i_counts, axis=0)
+
+    thresh = C / 2
+    p_inds = np.array(map(lambda x: x >= thresh, p_votes_by_chan))
+    i_inds = np.array(map(lambda x: x >= thresh, i_votes_by_chan))
+
+    return p_inds, i_inds
+
+
+# testing
 if __name__ == '__main__':
     #attrnames = ['raw', 'bsln_norm', 'feats', 'bsln_norm_feats']
     #attrnames = ['feats']
@@ -249,7 +241,8 @@ if __name__ == '__main__':
             print('optimizing clf parameters')
             #opt_c, opt_gamma, min_cv_error = get_opt_params(X_train, y_train, kernel=kern)
             opt_c, min_cv_error = get_opt_c(X_train, y_train, kernel=kern)
-            #clf = SVC(C=opt_c, kernel=kern, gamma=opt_gamma)
+            print('optimal C: ' + str(opt_c))
+            print('minimum cv error: ' + str(min_cv_error))
             clf = SVC(C=opt_c, kernel=kern)
             print('fitting training data')
             clf.fit(X_train, y_train)

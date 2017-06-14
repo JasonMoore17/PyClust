@@ -90,6 +90,7 @@ def get_header(src):
 			return line	
 
 
+# save random, independent, samples from each of I and P
 def save_test(srcroot, dstroot):
     for dirpath, dirnames, filenames in os.walk(os.path.join(ROOT, srcroot)):
         csvs = filter(lambda f: f.endswith('.csv'), filenames)              

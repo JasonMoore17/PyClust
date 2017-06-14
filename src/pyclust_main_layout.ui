@@ -1827,11 +1827,21 @@
      <addaction name="actionAutozoom_33"/>
      <addaction name="actionAutozoom_50"/>
     </widget>
+    <widget class="QMenu" name="menuFilter_Class">
+     <property name="title">
+      <string>Filter Class</string>
+     </property>
+     <addaction name="actionAll"/>
+     <addaction name="actionPyramidal"/>
+     <addaction name="actionInterneuron"/>
+     <addaction name="actionUnclassified"/>
+    </widget>
     <addaction name="actionRefractory"/>
     <addaction name="actionOverview_Mode"/>
     <addaction name="menuMarker_Size"/>
     <addaction name="menuProjection_Type"/>
     <addaction name="menuAutozoom"/>
+    <addaction name="menuFilter_Class"/>
    </widget>
    <widget class="QMenu" name="menuEdit">
     <property name="title">
@@ -2038,6 +2048,26 @@
    </property>
    <property name="text">
     <string>None</string>
+   </property>
+  </action>
+  <action name="actionAll">
+   <property name="text">
+    <string>All</string>
+   </property>
+  </action>
+  <action name="actionPyramidal">
+   <property name="text">
+    <string>Pyramidal</string>
+   </property>
+  </action>
+  <action name="actionInterneuron">
+   <property name="text">
+    <string>Interneuron</string>
+   </property>
+  </action>
+  <action name="actionUnclassified">
+   <property name="text">
+    <string>Unclassified</string>
    </property>
   </action>
  </widget>

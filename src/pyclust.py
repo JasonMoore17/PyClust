@@ -666,6 +666,14 @@ class PyClustMainWindow(QtGui.QMainWindow):
         self.ui.agroup_autozoom.addAction(self.ui.actionAutozoom_50)
         self.ui.agroup_autozoom.triggered.connect(self.actionAutozoom_triggered)
 
+        # action group for filter class
+        self.ui.agroup_filterclass = QTGui.QActionGroup(self, exclusive=True)
+        self.ui.agroup_filterclass.addAction(self.ui.actionAll)
+        self.ui.agroup_filterclass.addAction(self.ui.actionPyramidal)
+        self.ui.agroup_filterclass.addAction(self.ui.actionInterneuron)
+        self.ui.agroup_filterclass.addAction(self.ui.actionUnclassified)
+        self.ui.agroup_filterclass.triggered.connect(self.actionFilterClass_triggered)
+
         # Connect the handlers
         self.ui.checkBox_merge_background.clicked.connect(
                 self.merge_redraw)
@@ -2304,6 +2312,17 @@ class PyClustMainWindow(QtGui.QMainWindow):
                 self.mp_proj.autozoom_factor = 0.50
         self.mp_proj.featureRedrawRequired.emit()
 
+    def actionFilterClass_triggered(self):
+        selected = self.ui.agroup_filterclass.checkedAction()
+        if selected == self.ui.actionAll:
+            self.mp_proj.filter_class = 0
+        elif selected == self.ui.actionPyramidal:
+            self.mp_proj.filter_class = 1
+        elif selected == self.ui.actionInterneuron:
+            self.mp_proj.filter_class = 2
+        else:
+            self.mp_proj.filter_class = 3
+        self.mp_proj.featureRedrawRequired.emit()
 
     # save labeled cluster to file in csv format
     def action_saveLabeledCluster(self):
