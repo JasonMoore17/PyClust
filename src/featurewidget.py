@@ -71,6 +71,8 @@ class ProjectionWidget(Canvas):
         self.autozoom_factor = None
         self.autozoom_limits = np.array([None for i in range(2)], dtype=object)
 
+        self.filter_class = 0  # default all
+
 
     @Slot(bool)
     def setShowUnclustered(self, show):
@@ -147,14 +149,26 @@ class ProjectionWidget(Canvas):
 
     # Given a set of spike and cluster data, create the figure
     def updatePlot(self, spikeset, junk):
+        def filter_class(w):
+            if self.filter_class == 1:  # P
+                w = np.array(map(lambda x, y: x and y, spikeset.p_indices, w))
+            elif self.filter_class == 2:  # I
+                w = np.array(map(lambda x, y: x and y, spikeset.i_indices, w))
+            elif self.filter_class == 3:
+                raise ValueError('Unclassified not implemented')
+            return w
+
         clusters = spikeset.clusters
+
         xdata = spikeset.featureByName(self.feature_x).data[:, self.chan_x]
         ydata = spikeset.featureByName(self.feature_y).data[:, self.chan_y]
+
         self.axes.hold(False)
 
         cl_list = clusters + [junk]
         if self.prof_limits_reference is None:
             w = np.array([True] * spikeset.N)
+            w = filter_class(w)
             if not junk._visible:
                 w[junk.member] = False
 
@@ -173,6 +187,7 @@ class ProjectionWidget(Canvas):
             #Plot the unclustered spikes
             if self.unclustered:
                 w = np.array([True] * spikeset.N)
+                w = filter_class(w) 
 
                 if self.exclusive:
                     for cluster in clusters + [junk]:
@@ -189,9 +204,12 @@ class ProjectionWidget(Canvas):
                 if not cluster._visible:
                     continue
 
+                w = cluster.member
+                w = filter_class(w)
+
                 col = tuple(map(lambda s: s / 255.0, cluster.color))
                 # Plot the cluster spikes
-                self.axes.plot(xdata[cluster.member], ydata[cluster.member],
+                self.axes.plot(xdata[w], ydata[w],
                         marker='o', markersize=self.markersize,
                         markerfacecolor=col, markeredgecolor=col,
                         linestyle='None', alpha=0.99)
@@ -199,19 +217,23 @@ class ProjectionWidget(Canvas):
 
                 # Plot refractory spikes
                 if self.refractory:
-                    self.axes.plot(xdata[cluster.refractory],
-                        ydata[cluster.refractory], marker='o', markersize=5,
+                    w = cluster.refractory
+                    w = filter_class(w)
+                    self.axes.plot(xdata[w],
+                        ydata[w], marker='o', markersize=5,
                         markerfacecolor='k', markeredgecolor='k',
                         linestyle='None')
 
         # Do a density plot
         else:
             w = np.array([False] * spikeset.N)
+            w = filter_class(w)
             if self.unclustered:
                 w = np.array([True] * spikeset.N)
+                w = filter_class(w)
                 if self.exclusive:  # unclustered only
-                        for cluster in clusters + [junk]:
-                                w[cluster.member] = False
+                    for cluster in clusters + [junk]:
+                        w[cluster.member] = False
             for cluster in [cluster for cluster in cl_list if cluster._visible]:
                 w[cluster.member] = True
 

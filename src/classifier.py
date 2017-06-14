@@ -199,7 +199,7 @@ def get_opt_clf():
 
 
 # since there are C channels for each spike, we take a vote get get its class
-def get_class_indices(clf, spikes):
+def get_indices(clf, spikes):
     N = spikes.shape[0]
     C = spikes.shape[2]
     p_counts = np.zeros((N, C))
@@ -214,8 +214,8 @@ def get_class_indices(clf, spikes):
                 i_counts[n, c] += 1
             else:
                 raise IndexError
-    p_votes_by_chan = np.sum(p_counts, axis=0)
-    i_votes_by_chan = np.sum(i_counts, axis=0)
+    p_votes_by_chan = np.sum(p_counts, axis=1)
+    i_votes_by_chan = np.sum(i_counts, axis=1)
 
     thresh = C / 2
     p_inds = np.array(map(lambda x: x >= thresh, p_votes_by_chan))

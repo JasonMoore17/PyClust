@@ -667,7 +667,7 @@ class PyClustMainWindow(QtGui.QMainWindow):
         self.ui.agroup_autozoom.triggered.connect(self.actionAutozoom_triggered)
 
         # action group for filter class
-        self.ui.agroup_filterclass = QTGui.QActionGroup(self, exclusive=True)
+        self.ui.agroup_filterclass = QtGui.QActionGroup(self, exclusive=True)
         self.ui.agroup_filterclass.addAction(self.ui.actionAll)
         self.ui.agroup_filterclass.addAction(self.ui.actionPyramidal)
         self.ui.agroup_filterclass.addAction(self.ui.actionInterneuron)
@@ -2322,6 +2322,8 @@ class PyClustMainWindow(QtGui.QMainWindow):
             self.mp_proj.filter_class = 2
         else:
             self.mp_proj.filter_class = 3
+            raise ValueError('Unclassified not implemented')
+
         self.mp_proj.featureRedrawRequired.emit()
 
     # save labeled cluster to file in csv format
