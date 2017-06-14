@@ -629,7 +629,7 @@ class PyClustMainWindow(QtGui.QMainWindow):
         self.clf_data_saver = None
         self.ui.comboBox_labels.addItems(['', 'Pyramidal', 'Interneuron', 'Junk'])
 
-        # add options in comboBox
+        # add options in save comboBox
         self.saver_set = datasaver.DataSaverSet(None, None, None, None)
         self.ui.comboBox_attrTypes.addItem('all')
         for saver in self.saver_set.get_savers():

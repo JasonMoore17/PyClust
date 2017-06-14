@@ -35,6 +35,8 @@ import classifier
 # cluster contains a list of boundaries, along with some summary statistics
 # convention: N number of spikes, C number of channels, L length of waveforms
 
+clf = classifier.get_opt_clf()
+
 
 # Spike data is N x L x C
 class Spikeset:
@@ -55,7 +57,7 @@ class Spikeset:
 
         # classification
         p_indices, i_indices =\
-                classifier.get_indices(classifier.get_opt_clf(), self.spikes)
+                classifier.get_indices(clf, self.spikes)
         self.p_indices = p_indices
         self.i_indices = i_indices
 
