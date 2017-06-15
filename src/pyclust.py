@@ -2320,9 +2320,8 @@ class PyClustMainWindow(QtGui.QMainWindow):
             self.mp_proj.filter_class = 1
         elif selected == self.ui.actionInterneuron:
             self.mp_proj.filter_class = 2
-        else:
+        else:  # junk
             self.mp_proj.filter_class = 3
-            raise ValueError('Unclassified not implemented')
 
         self.mp_proj.featureRedrawRequired.emit()
 

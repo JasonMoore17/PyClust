@@ -98,63 +98,6 @@ def get_cv_error(X, y, clf, n_splits=5):
     return total_error / float(n_trials)
 
 
-# Compute optimal SVM hyperparameter C using cross-validation
-# Returns: opt_c = optimal C, min_error = min error for opt_c
-def get_opt_c(X, y, kernel='linear'):
-    c_range = [10.0 ** i for i in range(-5, 5)]
-
-    try:
-        min_error = float('inf')
-    except:
-        min_error = 1e30000
-
-    for c in c_range:
-        clf = SVC(C=c, kernel=kernel)
-        error = get_cv_error(X, y, clf)
-
-        if error < min_error:
-            min_error = error
-            opt_c = c
-
-    return opt_c, min_error
-
-
-def get_opt_params(X, y, kernel):
-    c_range = [10.0 ** i for i in range(-5, 5)]
-    gamma_range = [10.0 ** i for i in range(-5, 5)]
-    gamma_range.append('auto')
-
-    try:
-        min_error = float('inf')
-    except:
-        min_error = 1e30000
-
-    if kernel == 'linear':
-        for c in c_range:
-            clf = SVC(C=c, kernel=kernel)
-            error = get_cv_error(X, y, clf)
-
-            if error < min_error:
-                min_error = error
-                opt_c = c
-
-        return opt_c, 'auto', min_error
-
-    elif kernel in ['poly', 'rbf', 'sigmoid']:
-        for (c, g) in [(x, y) for x in c_range for y in gamma_range]:
-            clf = SVC(C=c, kernel=kernel, gamma=g)
-            error = get_cv_error(X, y, clf)
-            if error < min_error:
-                min_error = error
-                opt_c = c
-                opt_gamma = g
-
-        return opt_c, opt_g, min_error
-
-    else:
-        raise ValueError('Unknown kernel used')
-
-
 # Compute the error of training classifier 'clf' on training data
 # 'X_train', 'y_train'. Test on samples 'X_test', 'y_test'.
 def get_error(X_test, y_test, clf):
@@ -169,8 +112,7 @@ def get_error(X_test, y_test, clf):
     return n_mispreds / float(y_test.size)
 
 
-def get_test_error(clf, dirpath):
-    X_test, y_test = load_data(dirpath)
+def get_test_error(X_test, y_test, clf):
     err_all = get_error(X_test, y_test, clf)
     p_indices = np.array(map(lambda y_i: y_i == CLASS_P, y_test))
     i_indices = np.array(map(lambda y_i: y_i == CLASS_I, y_test))
@@ -179,27 +121,56 @@ def get_test_error(clf, dirpath):
     return err_all, err_p, err_i
 
 
-def get_opt_clf():
+##############################################################################
+# Top Modules
+##############################################################################
+
+def get_opt_clf(kernel='linear'):
     attrname = 'bsln_norm'
-    trainroot = attrname + '/means'
-    testroot = os.path.join('test', attrname, 'members')
+    trainroot = os.path.join(attrname, 'means')
     X_train, y_train = load_data(trainroot)
-    kernels = ['linear', 'rbf', 'poly', 'sigmoid']
     min_cv_error = float('inf')
-    for kern in kernels:
-        opt_c_tmp, min_cv_error_tmp = get_opt_c(X_train, y_train, kernel=kern)
-        if min_cv_error_tmp < min_cv_error:
-            min_cv_error = min_cv_error_tmp
-            opt_c = opt_c_tmp
-            opt_kern = kern
 
-    clf = SVC(C=opt_c, kernel=opt_kern)
+    if kernel == 'linear':
+        param_range = [1]  # place holder
+    elif kernel == 'rbf' or kernel == 'sigmoid':
+        param_range = [10.0 ** i for i in range(-2, 8)]
+    elif kernel == 'poly':
+        param_range = np.arange(2, 10, 1)
+
+    for c in [10.0 ** i for i in range(-5, 5)]:
+        for param in param_range:
+            if kernel == 'linear':
+                clf = SVC(kernel='linear', C=c)
+            elif kernel == 'rbf' or kernel == 'sigmoid':
+                clf = SVC(kernel=kernel, C=c, gamma=param)
+            elif kernel == 'poly':
+                clf = SVC(C=c, kernel='poly', degree=param) 
+            cv_error = get_cv_error(X_train, y_train, clf)
+            if cv_error < min_cv_error:
+                min_cv_error = cv_error
+                opt_c = c
+                if not kernel == 'linear':
+                    opt_param = param
+
+    #print('optimal parameters for ' + kernel + ' classifier: ')
+    if kernel == 'linear':
+        clf = SVC(kernel='linear', C=opt_c)
+    #    print('C=' + str(opt_c))
+    elif kernel == 'rbf' or kernel == 'sigmoid':
+        clf = SVC(kernel=kernel, C=opt_c, gamma=param)
+    #    print('C=' + str(opt_c))
+    #    print('gamma='  + str(param))
+    elif kernel == 'poly':
+        clf = SVC(kernel='poly', C=opt_c, degree=param)
+    #    print('C=' + str(opt_c))
+    #    print('degree='  + str(param))
+    else:
+        raise ValueError('invalid kernel')
+
     clf.fit(X_train, y_train)
-    print('clf kernel: ' + opt_kern)
-    print('clf C: ' + str(opt_c))
-    print('clf cv error: ' + str(min_cv_error))
     return clf
-
+    
 
 # since there are C channels for each spike, we take a vote to get its class
 def get_indices(clf, spikes):
@@ -226,37 +197,24 @@ def get_indices(clf, spikes):
     i_votes_by_chan = np.sum(i_counts, axis=1)
 
     thresh = C / 2
-    p_inds = np.array(map(lambda x: x >= thresh, p_votes_by_chan))
-    i_inds = np.array(map(lambda x: x >= thresh, i_votes_by_chan))
+    p_inds = np.array(map(lambda x: x > thresh, p_votes_by_chan))
+    i_inds = np.array(map(lambda x: x > thresh, i_votes_by_chan))
+    j_inds = np.array(map(lambda p, i: not p and not i, p_inds, i_inds))
 
-    return p_inds, i_inds
+    return p_inds, i_inds, j_inds
 
 
 # testing
 if __name__ == '__main__':
-    #attrnames = ['raw', 'bsln_norm', 'feats', 'bsln_norm_feats']
-    #attrnames = ['feats']
-    attrnames = ['raw', 'bsln_norm']
-    for attrname in attrnames:
-        trainroot = attrname + '/means'
-        testroot = os.path.join('test', attrname, 'members')
-        print('--------------------------------------------------------')
-        print('loading training data from ' + trainroot)
-        X_train, y_train = load_data(trainroot)
-        kernels = ['linear', 'rbf', 'poly', 'sigmoid']
-        for kern in kernels:
-            print('training classifier with *' + kern + '* kernel')
-            print('optimizing clf parameters')
-            #opt_c, opt_gamma, min_cv_error = get_opt_params(X_train, y_train, kernel=kern)
-            opt_c, min_cv_error = get_opt_c(X_train, y_train, kernel=kern)
-            print('optimal C: ' + str(opt_c))
-            print('minimum cv error: ' + str(min_cv_error))
-            clf = SVC(C=opt_c, kernel=kern)
-            print('fitting training data')
-            clf.fit(X_train, y_train)
-            err_all, err_p, err_i = get_test_error(clf, testroot)
-            print('Error rate for all classes: ' + str(err_all))
-            print('Misprediction rate for P class: ' + str(err_p))
-            print('Misprediction rate for I class: ' + str(err_i))
-            print('')
+    testroot = os.path.join('test', 'bsln_norm', 'members')
+    X_test, y_test = load_data(testroot)
+    kernels = ['linear', 'rbf', 'poly', 'sigmoid']
+    for kernel in kernels:
+        clf = get_opt_clf(kernel)
+        print('kernel: ' + kernel)
+        err_all, err_p, err_i  = get_test_error(X_test, y_test, clf)
+        print('test error: ' + str(err_all))
+        print('P error: ' + str(err_p))
+        print('I error: ' + str(err_i))
+        print('')
 

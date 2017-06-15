@@ -56,10 +56,11 @@ class Spikeset:
         self.clusters = []
 
         # classification
-        p_indices, i_indices =\
+        p_indices, i_indices, j_indices =\
                 classifier.get_indices(clf, self.spikes)
-        self.p_indices = p_indices
-        self.i_indices = i_indices
+        self.p_indices = p_indices  # Pyramidal
+        self.i_indices = i_indices  # Interneuron
+        self.j_indices = j_indices  # Neither
 
     def saveFeatures(self, filename):
         """Save feature info (PCA coefficients) to file."""

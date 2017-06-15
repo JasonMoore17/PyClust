@@ -155,7 +155,8 @@ class ProjectionWidget(Canvas):
             elif self.filter_class == 2:  # I
                 w = np.array(map(lambda x, y: x and y, spikeset.i_indices, w))
             elif self.filter_class == 3:
-                raise ValueError('Unclassified not implemented')
+                w = np.array(map(lambda x, y: x and y, spikeset.j_indices, w))
+            # else return all
             return w
 
         clusters = spikeset.clusters
