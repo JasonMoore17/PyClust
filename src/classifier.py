@@ -209,6 +209,9 @@ if __name__ == '__main__':
     testroot = os.path.join('test', 'bsln_norm', 'members')
     X_test, y_test = load_data(testroot)
     kernels = ['linear', 'rbf', 'poly', 'sigmoid']
+    errs_all = []
+    errs_p = []
+    errs_i = []
     for kernel in kernels:
         clf = get_opt_clf(kernel)
         print('kernel: ' + kernel)
@@ -217,4 +220,22 @@ if __name__ == '__main__':
         print('P error: ' + str(err_p))
         print('I error: ' + str(err_i))
         print('')
+        errs_all.append(err_all)
+        errs_p.append(err_p)
+        errs_i.append(err_i)
+
+    plt.bar(np.arange(len(kernels)), errs_all, align='center', alpha=0.5)
+    plt.title('Overall misclassification rate')
+    plt.xticks(np.arange(len(kernels)), kernels)
+    plt.show()
+
+    plt.bar(np.arange(len(kernels)), errs_p, align='center', alpha=0.5)
+    plt.title('P misclassification rate')
+    plt.xticks(np.arange(len(kernels)), kernels)
+    plt.show()
+
+    plt.bar(np.arange(len(kernels)), errs_i, align='center', alpha=0.5)
+    plt.title('I misclassification rate')
+    plt.xticks(np.arange(len(kernels)), kernels)
+    plt.show()
 
