@@ -61,6 +61,13 @@ class Spikeset:
         self.p_indices = p_indices  # Pyramidal
         self.i_indices = i_indices  # Interneuron
         self.j_indices = j_indices  # Neither
+        
+        n_ps = sum(self.p_indices)
+        n_is = sum(self.i_indices)
+        n_js = sum(self.j_indices)
+        print('Pyramidal neuron count: ' + str(n_ps))
+        print('Interneuron count: ' + str(n_is))
+        print('Unclassified count: ' + str(n_js))
 
     def saveFeatures(self, filename):
         """Save feature info (PCA coefficients) to file."""
