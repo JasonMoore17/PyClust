@@ -134,37 +134,36 @@ def get_opt_clf(kernel='linear'):
     if kernel == 'linear':
         param_range = [1]  # place holder
     elif kernel == 'rbf' or kernel == 'sigmoid':
-        param_range = [10.0 ** i for i in range(-2, 8)]
+        param_range = [1]  # place holder
+        #param_range = [10.0 ** i for i in range(-2, 8)]
+    #    param_range = [10.0]
     elif kernel == 'poly':
         param_range = np.arange(2, 10, 1)
 
     for c in [10.0 ** i for i in range(-5, 5)]:
         for param in param_range:
-            if kernel == 'linear':
+            if kernel == 'poly':
+                clf = SVC(kernel='linear', C=c, degree=param)
+            else:
                 clf = SVC(kernel='linear', C=c)
-            elif kernel == 'rbf' or kernel == 'sigmoid':
-                clf = SVC(kernel=kernel, C=c, gamma=param)
-            elif kernel == 'poly':
-                clf = SVC(C=c, kernel='poly', degree=param) 
             cv_error = get_cv_error(X_train, y_train, clf)
             if cv_error < min_cv_error:
                 min_cv_error = cv_error
                 opt_c = c
-                if not kernel == 'linear':
-                    opt_param = param
+                #if not kernel == 'linear':
+                #    opt_param = param
 
     #print('optimal parameters for ' + kernel + ' classifier: ')
     if kernel == 'linear':
         clf = SVC(kernel='linear', C=opt_c)
-    #    print('C=' + str(opt_c))
+        print('C=' + str(opt_c))
     elif kernel == 'rbf' or kernel == 'sigmoid':
-        clf = SVC(kernel=kernel, C=opt_c, gamma=param)
-    #    print('C=' + str(opt_c))
-    #    print('gamma='  + str(param))
+        clf = SVC(kernel=kernel, C=opt_c)
+        print('C=' + str(opt_c))
     elif kernel == 'poly':
         clf = SVC(kernel='poly', C=opt_c, degree=param)
-    #    print('C=' + str(opt_c))
-    #    print('degree='  + str(param))
+        print('C=' + str(opt_c))
+        print('degree=' + str(param))
     else:
         raise ValueError('invalid kernel')
 
@@ -206,8 +205,39 @@ def get_indices(clf, spikes):
 
 # testing
 if __name__ == '__main__':
+    trainroot = os.path.join('bsln_norm', 'means')
+    X_test, y_test = load_data(trainroot)
+
+
+    #for kernel in ['linear', 'rbf', 'poly', 'sigmoid']:
+    #    if kernel == 'poly':
+    #        PCA = decomposition.KernelPCA(n_components=8, kernel=kernel, degree=9)
+    #    else:
+    #        PCA = decomposition.KernelPCA(n_components=8, kernel=kernel)
+    #    Z = PCA.fit_transform(X_test)
+
+    #    get_p_indices = np.vectorize(lambda x: x == 1)
+    #    get_i_indices = np.vectorize(lambda x: x == 2)
+    #    Zp = Z[get_p_indices(y_test)]
+    #    Zi = Z[get_i_indices(y_test)]
+
+    #    for i in np.arange(0, 8, 2):
+    #        plt.figure()
+    #        plt.title('kernel: ' + kernel)
+    #        plt.xlabel('Principle Component ' + str(i))
+    #        plt.ylabel('Principle Component ' + str(i + 1))
+    #        plt.plot(Zp[:, i], Zp[:, i + 1], 'ro', Zi[:, i], Zi[:, i + 1], 'bo')
+    #        plt.show()
+
+
+    #p_inds = np.array(map(lambda x: x == CLASS_P, y_test))
+    #i_inds = np.array(map(lambda x: x == CLASS_I, y_test))
+    #print('P count: ' + str(sum(p_inds)))
+    #print('I count: ' + str(sum(i_inds)))
+
     testroot = os.path.join('test', 'bsln_norm', 'members')
     X_test, y_test = load_data(testroot)
+    print('X_test: ' + str(X_test.shape))
     kernels = ['linear', 'rbf', 'poly', 'sigmoid']
     errs_all = []
     errs_p = []

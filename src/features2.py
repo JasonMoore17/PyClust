@@ -1,3 +1,4 @@
+# This module is not needed anymore
 import numpy as np
 
 PEAK_INDEX = 17

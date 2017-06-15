@@ -1,3 +1,6 @@
+# this module is used to help predict the label to make things slightly easier
+# to save data
+
 import numpy as np
 
 import features2

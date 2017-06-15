@@ -1,3 +1,7 @@
+# This module is used to save the cluster from PyClust
+# The feature classes are no longer used, since they were discovered
+# to underperform the raw waveform
+
 import os                                                                       
 import numpy as np                                                              
 import matplotlib.pyplot as plt                                                 
